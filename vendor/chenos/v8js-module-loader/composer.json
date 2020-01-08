@@ -1,0 +1,25 @@
+{
+    "name": "chenos/v8js-module-loader",
+    "require": {
+        "webmozart/path-util": "^2.3"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^6.5",
+        "php-coveralls/php-coveralls": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Chenos\\V8JsModuleLoader\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Chenos\\V8JsModuleLoader\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "phpunit --colors=always",
+        "test-coverage": "phpunit --colors=always --coverage-clover clover.xml",
+        "coveralls": "php-coveralls -v"
+    }
+}

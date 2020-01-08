@@ -1,0 +1,17 @@
+{
+    "require": {
+        "firebase/php-jwt": "^5.0",
+        "chenos/v8js-module-loader": "^0.4.0",
+        "spatie/server-side-rendering": "^0.2.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Chenos\\ExecJs\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Chenos\\ExecJs\\Tests\\": "tests"
+        }
+    }
+}

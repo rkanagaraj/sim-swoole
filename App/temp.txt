@@ -1,0 +1,35 @@
+co::create(function() use($notitms,$imtms,$uid,$tid,$description,$url,$created_date,$dtype) {
+						 $db = new co\MySQL();
+			    $server = array(
+			    'host' => '192.168.5.203',
+			    'user' => 'root',
+			    'password' => 'caminven',
+			    'database' => 'calmet',
+			    'charset' => 'utf8',
+			    'timeout' => 2,
+			    'strict_type' => false,  /// / Open strict mode, the returned field will automatically be converted to a numeric type
+	    		'fetch_mode' => true, 
+	    		
+					);
+
+			    $ret1 = $db->connect($server);
+						$variableAry=explode(",",$notitms); 
+						foreach($variableAry as $var)
+						{
+							if($var!=$uid){
+								$sql = "INSERT INTO calmet_notification (not_tms,tm,task_id,description,url,when1,ntype,shown,readed,dtype) VALUES (".$var.",".$uid.",".$tid.",'".$description."','".$url."','".$created_date."',0,0,0,'".$dtype."') ON DUPLICATE KEY UPDATE description='".$description."',when1='".$created_date."',ntype=0, shown=0,readed=0,dtype='".$dtype."'";	
+								$doc = $db->query($sql);
+							}
+							var_dump("co id".$var);
+						}
+
+						$variableAry2=explode(",",$imtms);
+						foreach($variableAry2 as $var2)
+						{
+							if($var2!=$uid){
+								$sql = "INSERT INTO calmet_notification (not_tms,tm,task_id,description,url,when1,ntype,shown,readed,dtype) VALUES (".$var2.",".$uid.",".$tid.",'".$description."','".$url."','".$created_date."',1,0,0,'".$dtype."') ON DUPLICATE KEY UPDATE description='".$description."',when1='".$created_date."',ntype=1, shown=0,readed=0,dtype='".$dtype."'";
+								$doc = $db->query($sql);
+							}
+							var_dump("co id".$var2);
+						}	
+					});
