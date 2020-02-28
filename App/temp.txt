@@ -33,3 +33,74 @@ co::create(function() use($notitms,$imtms,$uid,$tid,$description,$url,$created_d
 							var_dump("co id".$var2);
 						}	
 					});
+
+
+
+co::create(function() use($notitms,$imtms,$asstmsname,$uid,$tid,$description,$url,$created_date,$dtype) {
+						 $db = new co\MySQL();
+			    $server = array(
+			    'host' => '192.168.5.203',
+			    'user' => 'root',
+			    'password' => 'caminven',
+			    'database' => 'calmet',
+			    'charset' => 'utf8',
+			    'timeout' => 2,
+			    'strict_type' => false,  /// / Open strict mode, the returned field will automatically be converted to a numeric type
+	    		'fetch_mode' => true, 
+	    		
+					);
+
+			    $ret1 = $db->connect($server);
+						$variableAry=explode(",",$notitms); 
+						foreach($variableAry as $var)
+						{
+							if($var!=$uid){
+								$sql = "INSERT INTO calmet_notification (not_tms,tm,task_id,description,url,when1,ntype,shown,readed,dtype) VALUES (".$var.",".$uid.",".$tid.",'".$description."','".$url."','".$created_date."',0,0,0,'".$dtype."') ON DUPLICATE KEY UPDATE description='".$description."',when1='".$created_date."',ntype=0, shown=0,readed=0,dtype='".$dtype."'";	
+								$doc = $db->query($sql);
+							}
+							var_dump("co id".$var);
+						}
+
+						$variableAry2=explode(",",$imtms);
+						foreach($variableAry2 as $var2)
+						{
+							if($var2!=$uid){
+								$sql = "INSERT INTO calmet_notification (not_tms,tm,task_id,description,url,when1,ntype,shown,readed,dtype) VALUES (".$var2.",".$uid.",".$tid.",'".$description."','".$url."','".$created_date."',1,0,0,'".$dtype."') ON DUPLICATE KEY UPDATE description='".$description."',when1='".$created_date."',ntype=1, shown=0,readed=0,dtype='".$dtype."'";
+								$doc = $db->query($sql);
+							}
+							var_dump("co id".$var2);
+						}	
+
+						$requestJSON = '{
+						  "body": [{
+						    "topic": "event",
+						    "action": "emit",
+						    "eventName": "test-event",
+						    "data": {"type":"test","some":$asstmsname}
+						  }]
+						}';
+						$server = 'http://192.168.5.203:1338';
+						$headers = array("Content-type: application/json");//,"Content-length:".strlen($requestJSON) ,"Connection: close");
+						 
+						$ch = curl_init(); 
+						curl_setopt($ch, CURLOPT_URL, $server);
+						curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+						curl_setopt($ch, CURLOPT_TIMEOUT, 100);
+						curl_setopt($ch, CURLOPT_POST, false);
+						curl_setopt($ch, CURLOPT_POSTFIELDS, $requestJSON);
+						curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+						$data = curl_exec($ch);
+						var_dump($data); 
+
+
+					}); //Co func end
+
+
+
+
+					var_dump("------------------------------");
+					var_dump($notitms);
+					$notsent = $this->swoole_mysql->query("select group_concat(' ',name ORDER BY name ASC) as names from calmet_users where id in ($notitms) and id<> $uid order by name");
+
+
+					$instsent = $this->swoole_mysql->query("select group_concat(' ',name ORDER BY name ASC) as names from calmet_users where id in ($imtms) and id<> $uid order by name");

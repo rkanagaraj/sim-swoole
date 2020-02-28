@@ -2,6 +2,7 @@
 //namespace node\lib;
 require_once Basedir.'/App/Models/Model.php';
 require_once Basedir.'/App/Models/CaptchaModel.php';
+require_once Basedir.'/src/DeepstreamClient.php';
 use \Firebase\JWT\JWT;
 use Swoole\Coroutine as co;
 $GLOBALS['site_title'] = "Tasks";
@@ -29,6 +30,7 @@ class Api
 		$this->db =  new swoole_mysql;
 		$this->swoole_mysql = new Swoole\Coroutine\MySQL();
 		$this->swoole_mysql->connect($this->server);
+		$this->dsclient = new DeepstreamClient( 'http://192.168.5.203:1338',[]);
 	}
 
 	public function post($data,$callback){
@@ -101,11 +103,14 @@ class Api
 		$tpyt=$a_data["tpyt"];
 		$notitms=$a_data["notitms"];
 		$imtms=$a_data["imtms"];
+		$asstmsname = $a_data["asstmsname"];
 		$tlog=$a_data["tlog"];
 		$tlog =str_replace("\\","\\\\",$tlog);
 		$tlog =str_replace("'","\\'",$tlog);
 				
 		$dtype=$a_data["dtype"];
+		$tmr=$a_data["tmr"];
+		$tmrname=$a_data["tmrname"];
 		$rtype=$a_data["rtype"];
 		$tcategory=$a_data["tcategory"];
 		$doculd = $a_data["doculd"];
@@ -153,12 +158,21 @@ class Api
 
 		}
 		
+		if($ret[0]["team_member"]!=$tmr){
+			$r=$this->swoole_mysql->query("select name from calmet.calmet_users where id = ".$ret[0]["team_member"].";");
+			$modify["tmr"]="TMR changed from <div class=\"hl2\">".$r[0]["name"]."</div> to <div class=\"hl2\">".$tmrname."</div><br>";
+			$sql ="Update calmet_tasks SET team_member=".$tmr."  where id=".$tid.";";
+			var_dump($sql);
+			$doc = $this->swoole_mysql->query($sql);
+		}
+
 
 		//var_dump(json_decode($ret));
 		$r=$this->swoole_mysql->query("select name from calmet.categorylist where type = ".$ret[0]["relate_to"]." and 
 			id=".$ret[0]["sel_relateid"].";");
 
 		//var_dump($r[0]["name"]."===".$tcategory);
+
 
 		if($r[0]["name"]!=$tcategory){
 			$modify["cate"]="Category changed from <div class=\"hl2\">".$r[0]["name"]."</div> to <div class=\"hl2\">".$tcategory."</div><br>";
@@ -189,11 +203,12 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 		$doc = $this->swoole_mysql->query($getunreadlogid);
 		var_dump($doc[0]["logid"]);
 		
-		if($doc[0]["logid"]!=""||$doc[0]["logid"]!=null){
+		/*if($doc[0]["logid"]!=""||$doc[0]["logid"]!=null){
 
 			if($rtype==1){
 				$ureadlog = $doc[0]["logid"];
 				co::create(function() use($doc,$uid,$tid) {
+					
 					var_dump("unread log id in Coroutine ". $doc[0]["logid"]);
 			    $db = new co\MySQL();
 			    $server = array(
@@ -235,7 +250,7 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 			}
 			
 			
-		}
+		}*/
 		
 		$end_time1 = microtime(true); 
 		  
@@ -284,33 +299,60 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 
 				if($tlog!="" || $doculd=="true"){
 
-					$variableAry=explode(",",$notitms); 
-					var_dump("------------------------------");
+					co::create(function() use($notitms,$imtms,$asstmsname,$uid,$tid,$description,$url,$created_date,$dtype) {
+						 $db = new co\MySQL();
+			    $server = array(
+			    'host' => '192.168.5.203',
+			    'user' => 'root',
+			    'password' => 'caminven',
+			    'database' => 'calmet',
+			    'charset' => 'utf8',
+			    'timeout' => 2,
+			    'strict_type' => false,  /// / Open strict mode, the returned field will automatically be converted to a numeric type
+	    		'fetch_mode' => true, 
+	    		
+					);
+
+			    $ret1 = $db->connect($server);
+			    $dsclient = new DeepstreamClient( 'http://192.168.5.203:1338',[]);
+						$variableAry=explode(",",$notitms); 
+						foreach($variableAry as $var)
+						{
+							if($var!=$uid){
+								$sql = "INSERT INTO calmet_notification (not_tms,tm,task_id,description,url,when1,ntype,shown,readed,dtype) VALUES (".$var.",".$uid.",".$tid.",'".$description."','".$url."','".$created_date."',0,0,0,'".$dtype."') ON DUPLICATE KEY UPDATE description='".$description."',when1='".$created_date."',ntype=0, shown=0,readed=0,dtype='".$dtype."'";	
+								$doc = $db->query($sql);
+							}
+							var_dump("co id".$var);
+						}
+
+						$variableAry2=explode(",",$imtms);
+						foreach($variableAry2 as $var2)
+						{
+							if($var2!=$uid){
+								$sql = "INSERT INTO calmet_notification (not_tms,tm,task_id,description,url,when1,ntype,shown,readed,dtype) VALUES (".$var2.",".$uid.",".$tid.",'".$description."','".$url."','".$created_date."',1,0,0,'".$dtype."') ON DUPLICATE KEY UPDATE description='".$description."',when1='".$created_date."',ntype=1, shown=0,readed=0,dtype='".$dtype."'";
+								$doc = $db->query($sql);
+							}
+							var_dump("co id".$var2);
+						}	
+
+						$devent = '{ "type":"wait", "some":$asstmsname}';
+						$myJSON = json_decode($devent);
+						var_dump($myJSON);
+						$dsclient->emitEvent('test-event', $myJSON);
+
+
+					}); //Co func end
+
+				}
+				
+				var_dump("------------------------------");
 					var_dump($notitms);
 					$notsent = $this->swoole_mysql->query("select group_concat(' ',name ORDER BY name ASC) as names from calmet_users where id in ($notitms) and id<> $uid order by name");
 
-					foreach($variableAry as $var)
-					{
-						if($var!=$uid){
-							$sql = "INSERT INTO calmet_notification (not_tms,tm,task_id,description,url,when1,ntype,shown,readed,dtype) VALUES (".$var.",".$uid.",".$tid.",'".$description."','".$url."','".$created_date."',0,0,0,'".$dtype."') ON DUPLICATE KEY UPDATE description='".$description."',when1='".$created_date."',ntype=0, shown=0,readed=0,dtype='".$dtype."'";	
-							$doc = $this->swoole_mysql->query($sql);
-						}
-					}
 
-					$variableAry2=explode(",",$imtms);
 					$instsent = $this->swoole_mysql->query("select group_concat(' ',name ORDER BY name ASC) as names from calmet_users where id in ($imtms) and id<> $uid order by name");
-					foreach($variableAry2 as $var2)
-					{
-						if($var2!=$uid){
-							$sql = "INSERT INTO calmet_notification (not_tms,tm,task_id,description,url,when1,ntype,shown,readed,dtype) VALUES (".$var2.",".$uid.",".$tid.",'".$description."','".$url."','".$created_date."',1,0,0,'".$dtype."') ON DUPLICATE KEY UPDATE description='".$description."',when1='".$created_date."',ntype=1, shown=0,readed=0,dtype='".$dtype."'";
-							$doc = $this->swoole_mysql->query($sql);
-						}
-					}	
-				}
-				
 
-
-				if($tlog!=""){
+			if($tlog!=""){
 			if($dtype==""){
 				$sql="INSERT INTO calmet_tasks_comments (loginid,task_id,comments,comments1,dateof_followup,created_date,otask_id,ltype,nottms,inttms) VALUES ($uid,".$tid.",'". $tlog ."','". $tlog ."','". $fdate ."',now(),".$tid.",0,'" . $notsent[0]["names"]."','".$instsent[0]["names"]."');"	;
 				//var_dump($sql);
@@ -333,8 +375,7 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 								$doc = $this->swoole_mysql->query($Sel_Com_Pros);	
 
 						}
-						                            
-		}
+			}
 
 			/*
 				Get the task date from postdata
@@ -384,6 +425,9 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 				 	if ($modify["team_member"]!=false){
 				 		$tlog.=$modify["team_member"]."\n";
 				 	}*/
+				 	if(isset($modify["tmr"]) && $modify["tmr"]!=""){
+				 		$syslog.=$modify["tmr"]."";
+				 	}
 				 	if (isset($modify["TMS_Added"]) && $modify["TMS_Added"]!=""){
 				 		//var_dump("oh i am working");
 				 		$syslog.=$modify["TMS_Added"]."";
@@ -467,6 +511,7 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 			Move the uploaded docuemnt names into dfile array
 		*/
 		$dfile = $data["files"]["doc_file"];
+
 		//var_dump($data["files"]["doc_file"]);
 		//var_dump("dfile".$dfile);
 		//var_dump(__DIR__);
@@ -481,6 +526,9 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 			Get the Post array values into variable 
 		*/
 		$id=$a_data["id"];
+		$tlog = $a_data["tlog"];
+		$tlog =str_replace("\\","\\\\",$tlog);
+		$tlog =str_replace("'","\\'",$tlog);
 		//$luid=$a_data["loguserid"];
 		$luid = $this->model->redis_hget($a_data["loguserid"],"uid");
 		var_dump("user id ". $uid);
@@ -781,13 +829,37 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 		
 			}
 			if($fcount>1){
-				$filelog.= "Following Documents were Uploaded: ". $fname ;
+				$filelog.= "Documents uploaded: ". $fname ;
 			}else{
-				$filelog.= "Following Document was Uploaded: ". $fname ;
+				$filelog.= "Document uploaded: ". $fname ;
 			}
+			/*if($tlog!=""){
+			if($dtype==""){
+				$sql="INSERT INTO calmet_tasks_comments (loginid,task_id,comments,comments1,dateof_followup,created_date,otask_id,ltype,nottms,inttms) VALUES ($uid,".$tid.",'". $tlog ."','". $tlog ."','". $fdate ."',now(),".$tid.",0,'" . $notsent[0]["names"]."','".$instsent[0]["names"]."');"	;
+				//var_dump($sql);
+				$doc = $this->swoole_mysql->query($sql);
+				$Sel_Com_Pros = "INSERT INTO calmet_task_log_temp (uid,tid,tlog,ltime,grpid) VALUES ($uid,$tid,'',now(),0) ON DUPLICATE KEY UPDATE tlog='', ltime=now();";
+				$doc = $this->swoole_mysql->query($Sel_Com_Pros);
+			}else{
+					$sql="INSERT INTO calmet_tasks_comments (loginid,task_id,comments,comments1,dateof_followup,created_date,otask_id,ltype,nottms,inttms) VALUES ($uid,".$tid.",'". $tlog ."','". $tlog ."','". $fdate ."',now(),".$tid.",".$dtype.",'" . $notsent[0]["names"]."','".$instsent[0]["names"]."');";
+						//var_dump($sql);
+						$doc = $this->swoole_mysql->query($sql);
+						$Sel_Com_Pros = "INSERT INTO calmet_task_log_temp (uid,tid,tlog,ltime,grpid) VALUES ($uid,$tid,'',now(),".$dtype.") ON DUPLICATE KEY UPDATE tlog='', ltime=now();";
+				$doc = $this->swoole_mysql->query($Sel_Com_Pros);
+					}
+						if($star==1){
+						  $retid=$this->swoole_mysql->query("SELECT LAST_INSERT_ID() as id;");
+							$retid = $retid[0]["id"];
+							var_dump($retid);
+							$Sel_Com_Pros = "INSERT INTO calmet_task_log_followup (tid,tlid,uid,star,w1) VALUES (".$tid.",".$retid.",".$uid.",".$star.",now()) ON DUPLICATE KEY UPDATE star=".$star.";";
+							 //var_dump($Sel_Com_Pros);
+								$doc = $this->swoole_mysql->query($Sel_Com_Pros);	
+
+						}
+			}*/
 			
 			//var_dump($filelog);
-			if($dtype==""){
+			/*if($dtype==""){
 				$sql="INSERT INTO calmet_tasks_comments (loginid,task_id,comments,comments1,created_date,otask_id,ltype) VALUES (".$luid.",".$id.",'". $filelog ."','". $filelog ."',now(),".$id.",0);"	;
 				//var_dump($sql);
 				$doc = $this->swoole_mysql->query("$sql");
@@ -796,9 +868,9 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 				//var_dump($sql);
 				$doc = $this->swoole_mysql->query("$sql");
 				}
-	      
+	      */
 			}
-		$ret = array('output' => "Sucess",'token' => $data["token"]);
+		$ret = array('output' => $filelog,'token' => $data["token"]);
 	 	}else if($data["trimmedPath"]=="api/updloghl"){
 	 			$qs = json_decode($data["payload"]);
 	 			$uid = $this->model->redis_hget($qs->uid,"uid");
@@ -904,7 +976,7 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 		$qs = json_decode($data["queryStringObject"]);
 		$uid = $this->model->redis_hget($qs->uid,"uid");
 		//$this->model->expire($qs->uid);
-		var_dump($uid);
+		//var_dump($uid);
 		if($uid){
 			
 			//exit('uid not found');
@@ -929,8 +1001,10 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 				//Get Meeting based task details from Meeting Page
 				if(isset($qs) && isset($qs->m) && $qs->m=="mid"){
 						$ret = $this->swoole_mysql->query("CALL meetlist32_new(".$uid.",".$qs->mid.",'".$qs->dval."',2,'".$qs->type."',@output)");
+
 				}else if(isset($qs) && isset($qs->m) && $qs->m=="cate"){
 					$ret = $this->swoole_mysql->query("CALL list232(".$uid.",'cate','".$qs->cate."',2,$showall, @output);");		
+				
 				}else if(isset($qs) && isset($qs->m) && $qs->m=="mee"){
 					//var_dump("CALL meetlist(".$uid.",'mee','".$qs->mee."','2022-01-01',2, @output);");
 					$ret = $this->swoole_mysql->query("CALL meetlist32_new(".$uid.",'".$qs->mee."','2050-01-01',2,'".$qs->type."', @output);");		
@@ -940,19 +1014,23 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 					//CALL list2(".$uid.",'cate','System',2,@output)
 					$ret = $this->swoole_mysql->query("CALL list232(".$uid.",'search','".$qs->txt."',2,$showall, @output);");		
 					$ret2 = $this->swoole_mysql->query("select @output");		
+				
 				//Get task list based on Search text entered in Advance Search
 				}else if(isset($qs) && isset($qs->m) && $qs->m=="advtxt"){
 					//CALL list2(".$uid.",'cate','System',2,@output)
 					//var_dump("CALL list2(".$uid.",'".seaadv."','".$qs->advtxt."',0, @output)");
 					$ret = $this->swoole_mysql->query("CALL list232(".$uid.",'seaadv','".$qs->advtxt."',2,$showall, @output);");		
+				
 				//Get task list default option.
 				}else if(isset($qs) && !isset($qs->m) && isset($qs->type)){
 					var_dump("Hi"."<br><br>");
 					$ret = $this->swoole_mysql->query("CALL list32('".$uid."',2,'".$qs->type."',@output)");		
 					//var_dump($ret);
+				
 				}else if(isset($qs) && isset($qs->m) && $qs->m=="pyt"){
 					$Sel_Com_Pros	= "INSERT INTO calmet_task_followup_dates (task_id,loginid,pyt) VALUES (".$qs->id.",".$uid.",".$qs->pyt.") ON DUPLICATE KEY UPDATE pyt=".$qs->pyt.";";
 					$ret = $this->swoole_mysql->query($Sel_Com_Pros);
+				
 				}else if(isset($qs) && isset($qs->m) && $qs->m=="sno"){
 					$Sel_Com_Pros	= "update calmet.calmet_task_followup_dates SET msnoozedt =  now()+INTERVAL ".$qs->sno." MINUTE, snoozedt =  now()+INTERVAL ".$qs->sno." MINUTE where id =".$qs->id." and loginid=".$uid." ;";
 					$ret = $this->swoole_mysql->query($Sel_Com_Pros);
@@ -960,6 +1038,28 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 				}else{
 					$ret = $this->swoole_mysql->query("CALL list32('".$uid."',2,0,@output)");		
 				}
+			}else if($hpath[1]=="getattn"){
+				try {
+
+					//connection params
+					$dbCon = new PDO('odbc:Driver=FreeTDS;Server=192.168.5.204; Port=1433;Database=eTimetracklite;TDS_Version=7.0; ClientCharset=UTF-8', 'sa', 'sql');
+
+					$id= 5196;
+					//test query
+					$result = $dbCon->query('SELECT * FROM [9001] order by date2 desc')->fetchAll();
+
+					$ret =  json_encode($result);
+
+					//close the connection
+					$dbCon = null;
+
+					} catch (PDOException $e) {
+
+					//show exception
+					$ret =  "Error : " . $e->getMessage() ."\n";
+
+				}
+
 			}else if($hpath[1]=="getreminders"){
 					//var_dump($qs);
 					$uid = $uid;
@@ -1178,22 +1278,32 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 				}
 			}else if($hpath[1]=="ntask"){
 				var_dump($qs);
-					//var_dump($qs->ntask);
-					//var_dump($qs->why);
-					//var_dump("CALL list2(48,'".search."','".$qs->txt."',2, @output);");
-					$Sel_Com_Pros="insert into calmet.calmet_tasks (relate_to,sel_relateid,date_followup,team_member,task_name,date_created,why,created_by,task_status,task_assigned) values(".$qs->ctype.",".$qs->cid.",now(),'".$uid."','".$qs->ntask."',now(),'".$qs->why."','".$uid."',1,'".$uid."');";
-					//var_dump($Sel_Com_Pros);
-					$ret = $this->swoole_mysql->query($Sel_Com_Pros);
-      			 // $m=last_insert_id();
-					$ret=$this->swoole_mysql->query("SELECT LAST_INSERT_ID() as id;");
+				var_dump($qs->tid);
+				$Sel_Com_Pros="insert into calmet.calmet_tasks (relate_to,sel_relateid,date_followup,team_member,task_name,date_created,why,created_by,task_status,task_assigned) values(".$qs->ctype.",".$qs->cid.",now(),'".$uid."','".$qs->ntask."',now(),'".$qs->why."','".$uid."',1,'".$uid."');";
+							//var_dump($Sel_Com_Pros);
+				 $ret = $this->swoole_mysql->query($Sel_Com_Pros);
+		      			 // $m=last_insert_id();
+				 $tid=$this->swoole_mysql->query("SELECT LAST_INSERT_ID() as id;");							
+				 $taskid=$tid[0];				
+				 $tlog="Task created by ".$qs->uname;
+				 $sql="INSERT INTO calmet_tasks_comments (loginid,task_id,comments,comments1,created_date,otask_id,ltype) VALUES 
+						          (".$uid.",".$taskid["id"].",'". $tlog ."','". $tlog ."',now(),".$taskid["id"].",0);";						
+				 $sql2 = $this->swoole_mysql->query($sql);
+				 $ret=$tid;						 					
+			//Delete Log
+			}else if($hpath[1]=="deletelog"){
+				//var_dump($qs->lid);
+				$Sel_Com_Pros="update calmet_tasks_comments set comments='<<<<< Deleted >>>>>',comments1='<<<<< Deleted >>>>>' where id='".$qs->lid."' and task_id='".$qs->tid."' and loginid='".$uid."';";
+				var_dump($Sel_Com_Pros);
+				$ret = $this->swoole_mysql->query($Sel_Com_Pros);
 
- 			
-				
+				//select * from calmet_tasks_comments where comments1 = '<<<<< Deleted >>>>>' and DATE(created_date)<=DATE(date_add(now(),interval -15 day))
+
+		      	// $m=last_insert_id();
+								 					
 			//Get Document list 
 			}else if($hpath[1]=="doclist"){
-					var_dump($qs);
 					//var_dump($qs->dtype);
-
 
 					  $Sel_Com_Pros	= "SELECT f.id,f.task_id,f.doc_file,if(f.pre_file_id>0,1,f.editmode) as edit_mode,f.open_by,if(f.open_by=".$uid.",'You..!',if(f.open_by>0,u.name,'')) as openby,f.pre_file_id,IF(ISNULL(f.modi_by),u1.name,u2.name) as luser,
 						IF(f.open_by>0,DATE_FORMAT(f.ud_date,'%e-%b-%y %l:%i %p'),IF(ISNULL(f.modi_date),DATE_FORMAT(f.creat_date,'%e-%b-%y %l:%i %p'),DATE_FORMAT(f.modi_date,'%e-%b-%y %l:%i %p'))) as ldate,
@@ -1218,11 +1328,11 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 				where tf.task_id = '".$qs->tid."'
 				and FIND_IN_SET('".$uid."',cm.meet_tms) order by concat(tf.meet_date,'',cm.meet_recu_stime) asc";
 				$ret = $this->swoole_mysql->query($sel_qry);
-				
+
 				
 			//Get TM Meeting List 
 			}else if($hpath[1]=="tmmeetinglist"){
-				//var_dump($qs);
+				var_dump($qs);
 					$sel_qry = "SELECT m.id as mid,TIME_FORMAT(m.meet_recu_stime, '%l:%i %p') as stime, 
 							CONCAT(m.meet_code,' - ',(select GROUP_CONCAT(' ',u2.name) from calmet_users u2 where find_in_set(u2.id,m.meet_tms) order by u2.name )) as mode, 
 							if(tf.meetid,1,0) as selmet, CONCAT_WS('-',md.meet_code,md.tms)  as mdesc, u2.ini, '".$uid."' as uid
@@ -1236,7 +1346,10 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 				
 			//Get Task details for Task Page
 			}else if($hpath[1]=="taskdetails"){
-				///if(isset($qs)){
+				if($uid==95){
+					var_dump($qs);
+				}
+				
 					$ret = $this->swoole_mysql->query("CALL gettaskpagedata(".$uid.",'".$qs->tid."',@output)");		
 					//$ret = $this->swoole_mysql->query('CALL list(77,2,@output)');		
 					//var_dump($ret);
@@ -1324,6 +1437,9 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 					//var_dump($ret);
 
 				}else if($hpath[1]=="gettmrlist"){
+					if(!isset($qs->dtype)){
+						$qs->dtype = 0;
+					}
 					//var_dump($qs);
 					//$tmg_sql= "SELECT id,name,IF(id=".$qs->tmr.",1,0) as tmr, IF(".$uid." in (20,21,31,77),1,0) as tmr2 FROM calmet_users WHERE status = 1 order by 2";
 					//$tmg_sql= "SELECT id,name,IF(id=".$qs->tmr.",1,0) as tmr, IF(id=".$uid." && id in (20,21,31,77),1,0) as tmr2 FROM calmet_users WHERE status = 1 
@@ -1449,7 +1565,7 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 					$Sel_Com_Pros = "INSERT INTO calmet_task_log_followup (tid,tlid,uid,star,w1) VALUES (".$qs->tid.",".$qs->lid.",".$uid.",".$qs->val.",now()) ON DUPLICATE KEY UPDATE star=".$qs->val.";";
 					$ret = $this->swoole_mysql->query($Sel_Com_Pros);		
 			}else if($hpath[1]=="twlist"){
-				$Sel_Com_Pros	= "CALL list2(".$uid.",'tw',' ',2, @output);";
+				$Sel_Com_Pros	= "CALL list232(".$uid.",'tw',' ',2, 0,@output);";
 				$ret = $this->swoole_mysql->query($Sel_Com_Pros);
 			}else if($hpath[1]=="gettasklog"){
 				//var_dump($qs);
@@ -1479,11 +1595,11 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 					//var_dump("------------------------------------------------------------------");
 					//var_dump($tlog_sql);              replace(replace(tc.comments1, '<','&lt;'),'>','&gt;') 
 					if(isset($qs->mode) && $qs->mode=="top"){
-					$tlog_sql= "Select tc.*, CONVERT(CAST(tc.comments1  as BINARY) USING utf8) as con_comment, if(isnull(lf.readed) and tc.id>300000,1,0) as readed,if(lf.star=0 || isnull(lf.star),0,1) as star,
+					$tlog_sql= "Select tc.*, CONVERT(CAST(tc.comments1  as BINARY) USING utf8) as con_comment, if(isnull(lf.readed) and tc.id>300000,1,0) as readed,if(lf.star=0 || isnull(lf.star),0,1) as star,if(DATE(tc.created_date)>=DATE(date_add(now(),interval -1 day)),'true','false') as deldate,
 						DATE_FORMAT(tc.created_date,'%a %e-%b-%y %l:%i %p') as dname, DATE_FORMAT(tc.created_date,'%d-%b-%y %h:%i %p') as ldate, cu.name,
 							if(cu.id=".$uid.",0,1) as luid  from calmet_tasks_comments tc  left outer join calmet_users cu on tc.loginid = cu.id left outer join calmet_task_log_followup lf ON (lf.tlid = tc.id and lf.uid = ".$uid.")  left outer join calmet_tasks ct on ct.id = tc.task_id where tc.task_id = '".$qs->tid."' and tc.ltype=0 order by tc.created_date desc limit 10"; 
 					}else{
-						$tlog_sql= "Select tc.*, CONVERT(CAST(tc.comments1 as BINARY) USING utf8) as con_comment, if(isnull(lf.readed) and tc.id>300000,1,0) as readed,if(lf.star=0 || isnull(lf.star),0,1) as star,
+						$tlog_sql= "Select tc.*, CONVERT(CAST(tc.comments1 as BINARY) USING utf8) as con_comment, if(isnull(lf.readed) and tc.id>300000,1,0) as readed,if(lf.star=0 || isnull(lf.star),0,1) as star,if(DATE(tc.created_date)>=DATE(date_add(now(),interval -1 day)),'true','false') as deldate,
 						DATE_FORMAT(tc.created_date,'%a %e-%b-%y %l:%i %p') as dname, DATE_FORMAT(tc.created_date,'%d-%b-%y %h:%i %p') as ldate, cu.name,
 							if(cu.id=".$uid.",0,1) as luid  from calmet_tasks_comments tc  left outer join calmet_users cu on tc.loginid = cu.id left outer join calmet_task_log_followup lf ON (lf.tlid = tc.id and lf.uid = ".$uid.")  left outer join calmet_tasks ct on ct.id = tc.task_id where tc.task_id = '".$qs->tid."' and ". $ltype ." order by tc.created_date desc"; 
 					}
@@ -1502,7 +1618,7 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 
 			}else if($hpath[1]=="messagelogs"){
 				//var_dump($qs);
-				$Sel_Com_Pros	= "select DATE_FORMAT(cn.when1,'%a %d-%b %h:%i %p') as when1,ct.task_name, if(cn.not_tms=".$uid.",'in','out') as dir,if(cn.not_tms=".$uid.",cu.name,cu1.name) as tm,if(cn.not_tms=".$uid." && cn.ntype=0,'Notification from',if(cn.not_tms=".$uid." && cn.ntype=1,'Instant from',if(cn.tm=".$uid." && cn.ntype=1,'Instant to',if(cn.tm=".$uid." && cn.ntype=0,'Notification to','')))) as type, if(viewed>when1, DATE_FORMAT(cn.viewed,'%a %d-%b %h:%i %p'), 'Not Seen') as viewstat,task_id FROM calmet.calmet_notification cn  inner join calmet_users cu on cu.id =cn.tm  inner join calmet_users cu1 on cu1.id =cn.not_tms  inner join calmet_tasks ct on ct.id = cn.task_id  where (cn.not_tms = ".$uid." or cn.tm=".$uid.")  and DATE_FORMAT(cn.when1,'%Y-%m-%d') > DATE_FORMAT(date_add(now(),interval -10 day),'%Y-%m-%d') order by cn.when1 desc limit 100;";
+				$Sel_Com_Pros	= "select DATE_FORMAT(cn.when1,'%a %d-%b %h:%i %p') as when1,ct.task_name,cn.dtype, if(cn.not_tms=".$uid.",'in','out') as dir,if(cn.not_tms=".$uid.",cu.name,cu1.name) as tm,if(cn.not_tms=".$uid." && cn.ntype=0,'Notification from',if(cn.not_tms=".$uid." && cn.ntype=1,'Instant from',if(cn.tm=".$uid." && cn.ntype=1,'Instant to',if(cn.tm=".$uid." && cn.ntype=0,'Notification to','')))) as type, if(viewed>when1, DATE_FORMAT(cn.viewed,'%a %d-%b %h:%i %p'), 'Not Seen') as viewstat,task_id FROM calmet.calmet_notification cn  inner join calmet_users cu on cu.id =cn.tm  inner join calmet_users cu1 on cu1.id =cn.not_tms  inner join calmet_tasks ct on ct.id = cn.task_id  where (cn.not_tms = ".$uid." or cn.tm=".$uid.")  and DATE_FORMAT(cn.when1,'%Y-%m-%d') > DATE_FORMAT(date_add(now(),interval -10 day),'%Y-%m-%d') order by cn.when1 desc limit 100;";
 				//var_dump($Sel_Com_Pros);
 				$ret = $this->swoole_mysql->query($Sel_Com_Pros);	
 				//var_dump($ret);
@@ -1519,7 +1635,7 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 			
 			}else if($hpath[1]=="meetingsserver"){
 				//var_dump($qs);
-				$Sel_Com_Pros	= "select cm.meet_code,cm.id, cm.meet_recu_stime from calmet_meeting cm inner join calmet_task_followup_dates tf on cm.id = tf.meetid left outer join meet_det md on md.id = tf.meetid left outer join calmet_users u on u.id = tf.loginid where 
+				$Sel_Com_Pros	= "select cm.meet_code,cm.id, cm.meet_recu_stime from calmet_meeting cm inner join calmet_task_meetings tf on cm.id = tf.meetid left outer join meet_det md on md.id = tf.meetid left outer join calmet_users u on u.id = tf.loginid where 
 					FIND_IN_SET($uid,cm.meet_tms) and meet_stat = 1
 					group by cm.meet_code 
 					order by cm.meet_order,cm.meet_code asc ";
@@ -1541,7 +1657,7 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 					
 					//Get Today Meeting list
 					if($i==0){
-						$seltdymet = "select m.id, m.meet_code, m.meet_desc,DATE_FORMAT(date_add(now(),interval 1 day),'%Y-%m-%d') as sdate, m.meet_recu_days, m.meet_recu_period, CONCAT_WS('-',TIME_FORMAT(meet_recu_stime, '%l:%i %p'), TIME_FORMAT(meet_recu_etime, '%l:%i %p')) AS stime, GROUP_CONCAT(u.name ORDER BY u.name SEPARATOR ', ') AS TMS,m.meet_order FROM calmet_meeting m,     calmet_users u WHERE FIND_IN_SET(u.id, meet_tms)  $whr and FIND_IN_SET(left(DAYNAME(date_add(now(),interval 0 day)),2), m.meet_recu_days) and m.meet_stat = 1 GROUP BY m.id ORDER BY  m.meet_order, m.meet_code,m.meet_recu_period,m.meet_recu_days , m.meet_recu_stime ASC, m.meet_code";
+						$seltdymet = "select m.id, m.meet_code, m.meet_desc,DATE_FORMAT(date_add(now(),interval 1 day),'%Y-%m-%d') as sdate, m.meet_recu_days, m.meet_recu_period, CONCAT_WS('-',TIME_FORMAT(meet_recu_stime, '%l:%i %p'), TIME_FORMAT(meet_recu_etime, '%l:%i %p')) AS stime, GROUP_CONCAT(u.name ORDER BY u.name SEPARATOR ', ') AS TMS,m.meet_order FROM calmet_meeting m,     calmet_users u WHERE FIND_IN_SET(u.id, meet_tms)  $whr and FIND_IN_SET(left(DAYNAME(date_add(now(),interval 0 day)),2), m.meet_recu_days) and m.meet_stat = 1 GROUP BY m.id ORDER BY  m.meet_recu_stime,m.meet_order, m.meet_code,m.meet_recu_period,m.meet_recu_days , m.meet_recu_stime ASC, m.meet_code";
 						$result = $this->swoole_mysql->query($seltdymet);	
 						$name[$i] = array(
 							'name'=> 'Today',
@@ -1551,14 +1667,14 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 					
 					//Get Tomorrow Meeting list
 					}else if($i==1){
-						$seltdymet = "select m.id, m.meet_code, m.meet_desc,DATE_FORMAT(date_add(now(),interval 2 day),'%Y-%m-%d') as sdate, m.meet_recu_days, m.meet_recu_period, CONCAT_WS('-',TIME_FORMAT(meet_recu_stime, '%l:%i %p'), TIME_FORMAT(meet_recu_etime, '%l:%i %p')) AS stime, GROUP_CONCAT(u.name ORDER BY u.name SEPARATOR ', ') AS TMS,m.meet_order FROM calmet_meeting m,     calmet_users u WHERE FIND_IN_SET(u.id, meet_tms) $whr and FIND_IN_SET(left(DAYNAME(date_add(now(),interval 1 day)),2), m.meet_recu_days) and m.meet_stat = 1 GROUP BY m.id ORDER BY  m.meet_order, m.meet_code,m.meet_recu_period,m.meet_recu_days , m.meet_recu_stime ASC, m.meet_code";
+						$seltdymet = "select m.id, m.meet_code, m.meet_desc,DATE_FORMAT(date_add(now(),interval 2 day),'%Y-%m-%d') as sdate, m.meet_recu_days, m.meet_recu_period, CONCAT_WS('-',TIME_FORMAT(meet_recu_stime, '%l:%i %p'), TIME_FORMAT(meet_recu_etime, '%l:%i %p')) AS stime, GROUP_CONCAT(u.name ORDER BY u.name SEPARATOR ', ') AS TMS,m.meet_order FROM calmet_meeting m,     calmet_users u WHERE FIND_IN_SET(u.id, meet_tms) $whr and FIND_IN_SET(left(DAYNAME(date_add(now(),interval 1 day)),2), m.meet_recu_days) and m.meet_stat = 1 GROUP BY m.id ORDER BY  m.meet_recu_stime,m.meet_order, m.meet_code,m.meet_recu_period,m.meet_recu_days , m.meet_recu_stime ASC, m.meet_code";
 						$result = $this->swoole_mysql->query($seltdymet);	
 						$name[$i] = array('name'=>'Tomorrow','data' => $result, );
 					
 					//Get next 6 days Meeting list with Day name.
 					}else{
 						$dayname = date("l", strtotime("+ ".$i." day"));
-						$seltdymet = "select m.id, m.meet_code, m.meet_desc, DATE_FORMAT(date_add(now(),interval $i+1 day),'%Y-%m-%d') as sdate,m.meet_recu_days, m.meet_recu_period, CONCAT_WS('-',TIME_FORMAT(meet_recu_stime, '%l:%i %p'), TIME_FORMAT(meet_recu_etime, '%l:%i %p')) AS stime, GROUP_CONCAT(u.name ORDER BY u.name SEPARATOR ', ') AS TMS,m.meet_order FROM calmet_meeting m,     calmet_users u WHERE FIND_IN_SET(u.id, meet_tms) $whr and FIND_IN_SET(left(DAYNAME(date_add(now(),interval $i day)),2), m.meet_recu_days) and m.meet_stat = 1 GROUP BY m.id ORDER BY  m.meet_order, m.meet_code,m.meet_recu_period,m.meet_recu_days , m.meet_recu_stime ASC, m.meet_code";
+						$seltdymet = "select m.id, m.meet_code, m.meet_desc, DATE_FORMAT(date_add(now(),interval $i+1 day),'%Y-%m-%d') as sdate,m.meet_recu_days, m.meet_recu_period, CONCAT_WS('-',TIME_FORMAT(meet_recu_stime, '%l:%i %p'), TIME_FORMAT(meet_recu_etime, '%l:%i %p')) AS stime, GROUP_CONCAT(u.name ORDER BY u.name SEPARATOR ', ') AS TMS,m.meet_order FROM calmet_meeting m,     calmet_users u WHERE FIND_IN_SET(u.id, meet_tms) $whr and FIND_IN_SET(left(DAYNAME(date_add(now(),interval $i day)),2), m.meet_recu_days) and m.meet_stat = 1 GROUP BY m.id ORDER BY  m.meet_recu_stime,m.meet_order, m.meet_code,m.meet_recu_period,m.meet_recu_days , m.meet_recu_stime ASC, m.meet_code";
 						$result = $this->swoole_mysql->query($seltdymet);	
 						$name[$i] = array('name' => $dayname, 'data' => $result, );
 					}
@@ -1588,7 +1704,7 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 		if($hpath[1]=="taskslist"){
 			var_dump(json_encode($qs));
 		}
-		echo " Execution time of ". $hpath[1] ." = ".$execution_time." sec\n"; 
+		//echo " Execution time of ". $hpath[1] ." = ".$execution_time." sec\n"; 
 		//var_dump("==============================================================================================================================");
 		$ret = array(
 			'output' => $ret,

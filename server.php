@@ -91,7 +91,7 @@ $http->start();
 //All the server logic for both http and https server
 function unifiedserver($request,$response){
 	$start_time = microtime(true); 
-	//var_dump($request);	
+	//var_dump($request->server["remote_addr"]);	
 	//Get tge URL and parse it
 	$parsedURL = $request->server['request_uri'];
 	//var_dump($parsedURL);
@@ -275,7 +275,7 @@ function unifiedserver($request,$response){
 		$end_time = microtime(true);
 		$req = $request->server["request_uri"];
 		$execution_time = ($end_time - $start_time); 
-		echo "Execution time of  $req  =  $execution_time sec\n"; 
+		//echo "Execution time of  $req  =  $execution_time sec\n"; 
 		//'Session key value: '.$_SESSION['key'].'<br>Session name: '.session_name().'<br>Session ID: '.session_id()
 		//var_dump('Returning this response ' . $statusCode . $payloadString);
 
