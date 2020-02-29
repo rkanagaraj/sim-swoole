@@ -27,10 +27,11 @@ class Api
     		'fetch_mode' => true, 
     		
 		);
-		$this->db =  new swoole_mysql;
+		//$this->db =  new swoole_mysql;
 		$this->swoole_mysql = new Swoole\Coroutine\MySQL();
 		$this->swoole_mysql->connect($this->server);
-		$this->dsclient = new DeepstreamClient( 'http://192.168.5.203:1338',[]);
+		//$this->dsclient = new DeepstreamClient( 'http://192.168.5.203:1338',[]);
+		$this->dsclient = new DeepstreamClient( 'http://192.168.5.140:1338',[]);
 	}
 
 	public function post($data,$callback){
@@ -103,6 +104,7 @@ class Api
 		$tpyt=$a_data["tpyt"];
 		$notitms=$a_data["notitms"];
 		$imtms=$a_data["imtms"];
+		$notitmstemp=$a_data["notitmstemp"];
 		$asstmsname = $a_data["asstmsname"];
 		$tlog=$a_data["tlog"];
 		$tlog =str_replace("\\","\\\\",$tlog);
@@ -209,7 +211,7 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 				$ureadlog = $doc[0]["logid"];
 				co::create(function() use($doc,$uid,$tid) {
 					
-					var_dump("unread log id in Coroutine ". $doc[0]["logid"]);
+				var_dump("unread log id in Coroutine ". $doc[0]["logid"]);
 			    $db = new co\MySQL();
 			    $server = array(
 			    'host' => '192.168.5.203',
@@ -220,8 +222,7 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 			    'timeout' => 2,
 			    'strict_type' => false,  /// / Open strict mode, the returned field will automatically be converted to a numeric type
 	    		'fetch_mode' => true, 
-	    		
-					);
+	    		);
 
 			    $ret1 = $db->connect($server);
 			    //$stmt = $db->query('SELECT * FROM calmet_tasks');
@@ -257,7 +258,7 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 		// Calculate script execution time 
 		$execution_time1 = ($end_time1 - $start_time1); 
 		var_dump("Exe Time :".$execution_time1);
-		$sql = "INSERT INTO calmet_task_log_temp (uid,tid,notitms,imtms,grpid) VALUES (".$uid.",".$tid.",'".$notitms."','".$imtms."','".$dtype."') ON DUPLICATE KEY UPDATE notitms='". $notitms ."', imtms='". $imtms ."';";
+		$sql = "INSERT INTO calmet_task_log_temp (uid,tid,notitms,imtms,grpid) VALUES (".$uid.",".$tid.",'".$notitmstemp."','".$imtms."','".$dtype."') ON DUPLICATE KEY UPDATE notitms='". $notitmstemp ."', imtms='". $imtms ."';";
 		var_dump($sql);
 		$doc = $this->swoole_mysql->query($sql);
 				
@@ -314,7 +315,8 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 					);
 
 			    $ret1 = $db->connect($server);
-			    $dsclient = new DeepstreamClient( 'http://192.168.5.203:1338',[]);
+			   // $dsclient = new DeepstreamClient( 'http://192.168.5.203:1338',[]);
+			    $dsclient = new DeepstreamClient( 'http://192.168.5.140:1338',[]);
 						$variableAry=explode(",",$notitms); 
 						foreach($variableAry as $var)
 						{
@@ -475,6 +477,11 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 			 	}
 		 	}
 
+		 	/*$dsclient = new DeepstreamClient( 'http://192.168.5.203:1338',[]);
+		 	$devent = '{ "type":"wait", "some":$asstmsname}';
+						$myJSON = json_decode($devent);
+						var_dump($myJSON);
+						$dsclient->emitEvent('test-event', $myJSON);*/
 
  			//$ret = $res;
  			$ret = array('output' => 'updated', 'token' => $data["token"] );
@@ -1621,6 +1628,57 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 				$Sel_Com_Pros	= "select DATE_FORMAT(cn.when1,'%a %d-%b %h:%i %p') as when1,ct.task_name,cn.dtype, if(cn.not_tms=".$uid.",'in','out') as dir,if(cn.not_tms=".$uid.",cu.name,cu1.name) as tm,if(cn.not_tms=".$uid." && cn.ntype=0,'Notification from',if(cn.not_tms=".$uid." && cn.ntype=1,'Instant from',if(cn.tm=".$uid." && cn.ntype=1,'Instant to',if(cn.tm=".$uid." && cn.ntype=0,'Notification to','')))) as type, if(viewed>when1, DATE_FORMAT(cn.viewed,'%a %d-%b %h:%i %p'), 'Not Seen') as viewstat,task_id FROM calmet.calmet_notification cn  inner join calmet_users cu on cu.id =cn.tm  inner join calmet_users cu1 on cu1.id =cn.not_tms  inner join calmet_tasks ct on ct.id = cn.task_id  where (cn.not_tms = ".$uid." or cn.tm=".$uid.")  and DATE_FORMAT(cn.when1,'%Y-%m-%d') > DATE_FORMAT(date_add(now(),interval -10 day),'%Y-%m-%d') order by cn.when1 desc limit 100;";
 				//var_dump($Sel_Com_Pros);
 				$ret = $this->swoole_mysql->query($Sel_Com_Pros);	
+				//var_dump($ret);
+			//Get Category list to fill category dropdown in task list page
+			}else if($hpath[1]=="readall"){
+
+		var_dump($qs);
+				$getunreadlogid = "Select group_concat('',tc.id) as logid from calmet_tasks_comments tc LEFT OUTER JOIN calmet_task_log_followup lf ON (lf.tlid =tc.id  and lf.uid = $uid and lf.tid='".$qs->tid."')
+				where tc.task_id = '".$qs->tid."' and tc.ltype='".$qs->dtype."'and tc.loginid != $uid and (lf.uid = $uid or isnull(lf.uid)) and (lf.readed!=0 or isnull(lf.readed))";
+				var_dump($getunreadlogid);
+				$Sel_Com_Pros	= "am working readall";
+				var_dump($Sel_Com_Pros);
+				$doc = $this->swoole_mysql->query($getunreadlogid);
+				var_dump($doc[0]["logid"]);
+		
+		if($doc[0]["logid"]!=""||$doc[0]["logid"]!=null){
+
+			//if($rtype==1){
+				$ureadlog = $doc[0]["logid"];
+				$tid=$qs->tid;
+				var_dump($tid);
+				co::create(function() use($doc,$uid,$tid) {
+					
+				var_dump("unread log id in Coroutine ". $doc[0]["logid"]);
+			    $db = new co\MySQL();
+			    $server = array(
+			    'host' => '192.168.5.203',
+			    'user' => 'root',
+			    'password' => 'caminven',
+			    'database' => 'calmet',
+			    'charset' => 'utf8',
+			    'timeout' => 2,
+			    'strict_type' => false,  /// / Open strict mode, the returned field will automatically be converted to a numeric type
+	    		'fetch_mode' => true, 
+	    		);
+
+			    $ret1 = $db->connect($server);
+			    //$stmt = $db->query('SELECT * FROM calmet_tasks');
+			    //var_dump($stmt);
+			    $logidarray=explode(",",$doc[0]["logid"]); 
+					//var_dump($logidarray);
+					foreach($logidarray as $logid)
+					{
+							$sql = "insert into calmet_task_log_followup (uid,tid,tlid,w1,readed) values ($uid,$tid,$logid,now(),0) ON DUPLICATE KEY UPDATE w1=now(),readed=0";	
+							var_dump($sql);
+							$res = $db->query($sql);
+						
+					}
+			    //return $stmt;
+				});
+			}
+				$ret =1;
+				//$ret = $this->swoole_mysql->query($Sel_Com_Pros);	
 				//var_dump($ret);
 			//Get Category list to fill category dropdown in task list page
 			}else if($hpath[1]=="cateserver"){

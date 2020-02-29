@@ -14,7 +14,7 @@ class Model
 	
 	Public function __construct(){
 		$this->redisdb =  new Swoole\Coroutine\Redis();
-		$this->redisdb->connect('127.0.0.1', 6379);
+		$this->redisdb->connect('192.168.5.203', 6379);
 	}
 	
 
