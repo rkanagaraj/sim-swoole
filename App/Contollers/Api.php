@@ -477,11 +477,11 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 			 	}
 		 	}
 
-		 	/*$dsclient = new DeepstreamClient( 'http://192.168.5.203:1338',[]);
+		 	$dsclient = new DeepstreamClient( 'http://192.168.5.203:1338',[]);
 		 	$devent = '{ "type":"wait", "some":$asstmsname}';
 						$myJSON = json_decode($devent);
 						var_dump($myJSON);
-						$dsclient->emitEvent('test-event', $myJSON);*/
+						$dsclient->emitEvent('test-event', $myJSON);
 
  			//$ret = $res;
  			$ret = array('output' => 'updated', 'token' => $data["token"] );
@@ -1625,14 +1625,34 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 
 			}else if($hpath[1]=="messagelogs"){
 				//var_dump($qs);
-				$Sel_Com_Pros	= "select DATE_FORMAT(cn.when1,'%a %d-%b %h:%i %p') as when1,ct.task_name,cn.dtype, if(cn.not_tms=".$uid.",'in','out') as dir,if(cn.not_tms=".$uid.",cu.name,cu1.name) as tm,if(cn.not_tms=".$uid." && cn.ntype=0,'Notification from',if(cn.not_tms=".$uid." && cn.ntype=1,'Instant from',if(cn.tm=".$uid." && cn.ntype=1,'Instant to',if(cn.tm=".$uid." && cn.ntype=0,'Notification to','')))) as type, if(viewed>when1, DATE_FORMAT(cn.viewed,'%a %d-%b %h:%i %p'), 'Not Seen') as viewstat,task_id FROM calmet.calmet_notification cn  inner join calmet_users cu on cu.id =cn.tm  inner join calmet_users cu1 on cu1.id =cn.not_tms  inner join calmet_tasks ct on ct.id = cn.task_id  where (cn.not_tms = ".$uid." or cn.tm=".$uid.")  and DATE_FORMAT(cn.when1,'%Y-%m-%d') > DATE_FORMAT(date_add(now(),interval -10 day),'%Y-%m-%d') order by cn.when1 desc limit 100;";
+				$Sel_Com_Pros	= "select DATE_FORMAT(cn.when1,'%a %d-%b %h:%i %p') as when1,DATE_FORMAT(cn.when1,'%Y%m%d %H:%i') as when2,ct.id,ct.task_name,cn.dtype, if(cn.not_tms=".$uid.",'in','out') as dir,if(cn.not_tms=".$uid.",cu.name,cu1.name) as tm,if(cn.not_tms=".$uid." && cn.ntype=0,'Notification from',if(cn.not_tms=".$uid." && cn.ntype=1,'Instant from',if(cn.tm=".$uid." && cn.ntype=1,'Instant to',if(cn.tm=".$uid." && cn.ntype=0,'Notification to','')))) as type, if(viewed>when1, DATE_FORMAT(cn.viewed,'%a %d-%b %h:%i %p'), 'Not Seen') as viewstat,task_id,'0' as selrow FROM calmet.calmet_notification cn  inner join calmet_users cu on cu.id =cn.tm  inner join calmet_users cu1 on cu1.id =cn.not_tms  inner join calmet_tasks ct on ct.id = cn.task_id  where (cn.not_tms = ".$uid." or cn.tm=".$uid.")  and DATE_FORMAT(cn.when1,'%Y-%m-%d') > DATE_FORMAT(date_add(now(),interval -10 day),'%Y-%m-%d') order by cn.when1 desc limit 100;";
 				//var_dump($Sel_Com_Pros);
+				$ret = $this->swoole_mysql->query($Sel_Com_Pros);	
+				//var_dump($ret);
+			//Get Category list to fill category dropdown in task list page
+			}else if($hpath[1]=="mrmsglog"){
+				var_dump(json_decode($qs->msglogs));
+
+				var_dump($qs->msglogs[0]);
+				$n=json_decode($qs->msglogs);
+				$j=count($n);
+				var_dump($j);
+				//var_dump($n[1]->task_name);
+				for ($k=0;$k<$j;$k++){
+					$Sel_Com_Pros = "Update calmet.calmet_notification set shown=1,readed=0, dtype=".$n[$k]->dtype.",viewed=now() where task_id=".$n[$k]->task_id." and not_tms=".$uid." and dtype=".$n[$k]->dtype.";";
+					var_dump($Sel_Com_Pros);
+					$ret = $this->swoole_mysql->query($Sel_Com_Pros);
+
+				}
+
+				//$Sel_Com_Pros = "Update calmet.calmet_notification set shown=0,readed=0, dtype=".$qs->$.",viewed=now() where task_id=".$qs->tid." and not_tms=".$uid.";";
+				
 				$ret = $this->swoole_mysql->query($Sel_Com_Pros);	
 				//var_dump($ret);
 			//Get Category list to fill category dropdown in task list page
 			}else if($hpath[1]=="readall"){
 
-		var_dump($qs);
+				var_dump($qs);
 				$getunreadlogid = "Select group_concat('',tc.id) as logid from calmet_tasks_comments tc LEFT OUTER JOIN calmet_task_log_followup lf ON (lf.tlid =tc.id  and lf.uid = $uid and lf.tid='".$qs->tid."')
 				where tc.task_id = '".$qs->tid."' and tc.ltype='".$qs->dtype."'and tc.loginid != $uid and (lf.uid = $uid or isnull(lf.uid)) and (lf.readed!=0 or isnull(lf.readed))";
 				var_dump($getunreadlogid);
