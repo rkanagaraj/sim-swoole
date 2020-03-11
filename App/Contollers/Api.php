@@ -898,6 +898,29 @@ where tc.task_id = $tid and tc.ltype=$dtype and tc.loginid != $uid and (lf.uid =
 				$ctype="text";
 				$ret = array('output' => "Sucess",'token' => $data["token"]);
 				//$ret="Sucess";
+		}else if($data["trimmedPath"]=="api/mrmsglog"){
+
+				$qs=json_decode($data["payload"]);
+				$uid = $this->model->redis_hget($qs->params->uid,"uid");
+				var_dump($qs->params->msglogs);
+				$n=json_decode($qs->params->msglogs);
+				$j=count($n);
+				var_dump($j);
+				//var_dump($n[1]->task_name);
+				for ($k=0;$k<$j;$k++){
+					$Sel_Com_Pros = "Update calmet.calmet_notification set shown=1,readed=0, dtype=".$n[$k]->dtype.",viewed=now() where task_id=".$n[$k]->task_id." and not_tms=".$uid." and dtype=".$n[$k]->dtype.";";
+					var_dump($Sel_Com_Pros);
+					$sql = $this->swoole_mysql->query($Sel_Com_Pros);
+
+				}
+				$ret = array('output' => "Sucess",'token' => $data["token"]);
+
+				//$qs=json_decode($data["payload"]);
+				//var_dump($qs[1]->task_name);
+				//json_decode($data["payload"]) ;				
+				//$when=$qs=>["params"]=>["msglogs"];
+				//var_dump($when);
+
 		}else if($data["trimmedPath"]=="api/updgroup"){
 	 			$qs = json_decode($data["payload"]);
 	 			$uid = $this->model->redis_hget($qs->uid,"uid");
@@ -1648,7 +1671,7 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 				//$Sel_Com_Pros = "Update calmet.calmet_notification set shown=0,readed=0, dtype=".$qs->$.",viewed=now() where task_id=".$qs->tid." and not_tms=".$uid.";";
 				
 				$ret = $this->swoole_mysql->query($Sel_Com_Pros);	
-				//var_dump($ret);
+			//var_dump($ret);
 			//Get Category list to fill category dropdown in task list page
 			}else if($hpath[1]=="readall"){
 
