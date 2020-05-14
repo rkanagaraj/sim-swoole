@@ -17,9 +17,9 @@ class Api
 		$this->model = new Model();
 
 		$this->server = array(
-		    'host' => '192.168.5.203',
+		    'host' => '127.0.0.1',
 		    'user' => 'root',
-		    'password' => 'caminven',
+		    'password' => 'bhkannan',
 		    'database' => 'calmet',
 		    'charset' => 'utf8',
 		    'timeout' => 2,

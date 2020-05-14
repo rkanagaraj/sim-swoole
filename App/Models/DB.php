@@ -7,7 +7,7 @@ class DB {
   function __construct(){
     try {
       $this->pdo = new PDO(
-        "mysql:host=192.168.5.203;dbname=calmet;charset=utf8", 
+        "mysql:host=127.0.0.1;dbname=calmet;charset=utf8", 
         "root", "caminven", [
           PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
           PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
