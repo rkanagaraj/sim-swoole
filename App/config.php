@@ -7,8 +7,8 @@
 //Container for all the environment
 $environments = [
 		'staging' => [
-			'httpPort' => 3001,
-			'httpsPort' => 3002,
+			'httpPort' => 4001,
+			'httpsPort' => 4002,
 			'APP_ENV' => 'staging',
 			'BASEDIR' => __DIR__,
 
