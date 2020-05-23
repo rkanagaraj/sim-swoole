@@ -1663,6 +1663,14 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 				
 			//Get Category list to fill category dropdown in task list page
 
+			}else if($hpath[1]=="tlist"){
+				$tlog_sql= "Select tc.task_id,tc.id,DATE_FORMAT(lf.mtdate,'%a %e-%b-%y') as mtdate, DATE_FORMAT(lf.mtdate,'%Y-%m-%d') as mthdate,DATE_FORMAT(tc.created_date,'%d-%b-%y %h:%i %p') as ldate from calmet_tasks_comments tc  left outer join calmet_users cu on tc.loginid = cu.id left outer join calmet_task_log_followup lf ON (lf.tlid = tc.id and lf.uid = ".$uid.")  left outer join calmet_tasks ct on ct.id = tc.task_id where tc.task_id = '".$qs->tid."' and find_in_set(".$uid.",ct.task_assigned) and (lf.mtdate>0 or lf.mtdate!=null) order by lf.mtdate asc;"; 
+				var_dump($tlog_sql);
+				$ret = $this->swoole_mysql->query($tlog_sql);	
+
+								
+			//Get Category list to fill category dropdown in task list page
+
 			}else if($hpath[1]=="messagelogs"){
 				//var_dump($qs);
 				$Sel_Com_Pros	= "select DATE_FORMAT(cn.when1,'%a %d-%b %h:%i %p') as when1,DATE_FORMAT(cn.when1,'%Y%m%d %H:%i') as when2,ct.id,ct.task_name,cn.dtype, if(cn.not_tms=".$uid.",'in','out') as dir,if(cn.not_tms=".$uid.",cu.name,cu1.name) as tm,if(cn.not_tms=".$uid." && cn.ntype=0,'Notification from',if(cn.not_tms=".$uid." && cn.ntype=1,'Instant from',if(cn.tm=".$uid." && cn.ntype=1,'Instant to',if(cn.tm=".$uid." && cn.ntype=0,'Notification to','')))) as type, if(viewed>when1, DATE_FORMAT(cn.viewed,'%a %d-%b %h:%i %p'), 'Not Seen') as viewstat,task_id,'0' as selrow FROM calmet.calmet_notification cn  inner join calmet_users cu on cu.id =cn.tm  inner join calmet_users cu1 on cu1.id =cn.not_tms  inner join calmet_tasks ct on ct.id = cn.task_id  where (cn.not_tms = ".$uid." or cn.tm=".$uid.")  and DATE_FORMAT(cn.when1,'%Y-%m-%d') > DATE_FORMAT(date_add(now(),interval -10 day),'%Y-%m-%d') order by cn.when1 desc limit 100;";
