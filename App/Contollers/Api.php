@@ -1595,7 +1595,7 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 
 					if(($qs->val)==0){
 						$mtdate="";
-						$Sel_Com_Pros = "INSERT INTO calmet_task_log_followup (tid,tlid,uid,star,w1,mtdate) VALUES (".$qs->tid.",".$qs->lid.",".$uid.",".$qs->val.",now(),'') ON DUPLICATE KEY UPDATE star=".$qs->val.";";
+						$Sel_Com_Pros = "INSERT INTO calmet_task_log_followup (tid,tlid,uid,star,w1) VALUES (".$qs->tid.",".$qs->lid.",".$uid.",".$qs->val.",now()) ON DUPLICATE KEY UPDATE star=".$qs->val.";";
 						$sql="UPDATE calmet_task_log_followup SET mtdate='NULL' WHERE tlid='".$qs->lid."' and uid=".$uid." and tid=".$qs->tid.";";
 						var_dump($sql);
 						$res = $this->swoole_mysql->query($sql);
