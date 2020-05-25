@@ -1664,10 +1664,10 @@ IF(id in ($imtms),1,0) as im FROM calmet_users WHERE status = 1 order by 2";
 			//Get Category list to fill category dropdown in task list page
 
 			}else if($hpath[1]=="tlist"){
-				$tlog_sql= "Select tc.task_id,tc.id,DATE_FORMAT(lf.mtdate,'%a %e-%b-%y') as mtdate, DATE_FORMAT(lf.mtdate,'%Y-%m-%d') as mthdate,DATE_FORMAT(tc.created_date,'%d-%b-%y %h:%i %p') as ldate from calmet_tasks_comments tc  left outer join calmet_users cu on tc.loginid = cu.id left outer join calmet_task_log_followup lf ON (lf.tlid = tc.id and lf.uid = ".$uid.")  left outer join calmet_tasks ct on ct.id = tc.task_id where tc.task_id = '".$qs->tid."' and find_in_set(".$uid.",ct.task_assigned) and (lf.mtdate>0 or lf.mtdate!=null) order by lf.mtdate asc;"; 
-				var_dump($tlog_sql);
+				$tlog_sql= "Select tc.task_id,tc.id,DATE_FORMAT(lf.mtdate,'%a %e-%b-%y') as mtdate, DATE_FORMAT(lf.mtdate,'%Y-%m-%d') as mthdate,DATE_FORMAT(tc.created_date,'%d-%b-%y %h:%i %p') as ldate from calmet_tasks_comments tc  left outer join calmet_users cu on tc.loginid = cu.id left outer join calmet_task_log_followup lf ON (lf.tlid = tc.id and lf.uid = ".$uid.")  left outer join calmet_tasks ct on ct.id = tc.task_id where tc.task_id = '".$qs->tid."' and find_in_set(".$uid.",ct.task_assigned) order by lf.mtdate asc;"; 
+				//var_dump($tlog_sql);
 				$ret = $this->swoole_mysql->query($tlog_sql);	
-
+				
 								
 			//Get Category list to fill category dropdown in task list page
 
