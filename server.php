@@ -35,7 +35,7 @@ $http = new swoole_http_server("0.0.0.0", $config['httpPort']);
 //$https = $http->addListener("0.0.0.0", $config['httpsPort'],  SWOOLE_SOCK_TCP|SWOOLE_SSL);
 
 // Set worker Number, Max Connection & Max request
-/*$http->set([
+$http->set([
 			'reactor_num' => 4,
       'worker_num'=>8, 
       'max_connection' => 1024,
@@ -189,37 +189,8 @@ function unifiedserver($request,$response){
 	            $params['httponly']
         	); 
 			
-		}else{
-			var_dump("I m here no token area".$payload["token"]);
-			$params = session_get_cookie_params();
-			$response->cookie(
-	            "auth",
-	            "",
-	            $params['lifetime'] ? time() + $params['lifetime'] : time()+60*60*24,
-	            $params['path'],
-	            $params['domain'],
-	            $params['secure'],
-	            $params['httponly']
-        	); 
 		}
-		/*}else if(isset($payload["token"])&& $payload["token"]=="delete"){
-			//var_dump("dafdfl;asfasdflk lsdf kdsf s");
-			$params = session_get_cookie_params();
-			$response->cookie(
-	            "auth",
-	            "",
-	            $params['lifetime'] ? time() + $params['lifetime'] : time()+60*60,
-	            $params['path'],
-	            $params['domain'],
-	            $params['secure'],
-	            $params['httponly']
-        	); */
-		//}else{
-		//	var_dump("--------------------------------------------------");
-			//var_dump($payload);
-		//	var_dump("--------------------------------------------------");
-		//}	
-
+		
 		if(isset($payload["output"])){
 			$payload = gettype($payload["output"]) == 'array' ? json_encode($payload["output"])  : $payload["output"];
 		}else{
