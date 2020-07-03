@@ -18,14 +18,16 @@ class Api
 		$this->model = new Model();
 
 		$this->server = array(
-		    'host' => 'shiwin.co.in',
-		    'user' => 'ubuntu',
+		    //'host' => 'shiwin.co.in',
+		    'host' => 'localhost',
+		    //'user' => 'ubuntu',
+		    'user' => 'root',
 		    'password' => 'caminven',
 		    'database' => 'sim',
 		    'charset' => 'utf8',
-		    'timeout' => 2,
-		    'strict_type' => false,  /// / Open strict mode, the returned field will automatically be converted to a numeric type
-    		'fetch_mode' => true, 
+		    'timeout' => 60,
+		    //'strict_type' => false,  /// / Open strict mode, the returned field will automatically be converted to a numeric type
+    		//'fetch_mode' => true, 
     		
 		);
 		$this->swoole_mysql = new Swoole\Coroutine\MySQL();
@@ -120,32 +122,107 @@ class Api
 	public function post($data,$callback){
 		//var_dump($data);
 		$user = json_decode($data["payload"]);
-		var_dump($user->username);
-		var_dump($user->password);
+		var_dump($user);
 		if($data["trimmedPath"]=="api/login"){
-			$client = "select * from sim_clients where uphone=$user->username and upass='$user->password'";
+			$client = "select * from sim_clients where (uphone='$user->username' or uname='$user->username') and upass='$user->password'";
 			var_dump($client);
 			$result = $this->swoole_mysql->query($client);
+			/////var_dump($result);
 			if($result){
 				$ret = $result[0];
 			}else{
 				$ret = array("error" => "Authentication Failed");
 				$this->status = 401;
 			}
+		}else if($data["trimmedPath"]=="api/test"){
+			$user = json_decode($data["payload"]);
+			$qhistory = "select * from sim_clients where uid='$user->id' ";
+			var_dump($qhistory);
+			$result = $this->swoole_mysql->query($qhistory);
+			if($result){
+				$ret = $result;
+			}else{
+				$ret = array("error" => "History Fetch Error");
+				$this->status = 401;
+			}
+
 		}
 		var_dump($ret);
 		$callback($this->status,$ret,$this->ctype);
 	}
 
 	public function get($data,callable $callback){
-		//var_dump($data);
+		var_dump($data);
 		if($data["trimmedPath"]=="api/chk"){
 			$ret = self::run();
+		}else if($data["trimmedPath"]=="api/login"){
+			$user = json_decode($data["queryStringObject"]);
+			$client = "select * from sim_clients where (uphone='$user->username' or uname='$user->username') or and upass='$user->password'";
+			var_dump($client);
+			$result = $this->swoole_mysql->query($client);
+			/////var_dump($result);
+			if($result){
+				$ret = $result[0];
+			}else{
+				$ret = array("error" => "Authentication Failed");
+				$this->status = 401;
+			}
+		}else if($data["trimmedPath"]=="api/getdbdet"){
+			$user = json_decode($data["queryStringObject"]);
+			var_dump($user);
+			$dbdet = "select * from client_db where cid='$user->uid' ";
+			var_dump($dbdet);
+			$result = $this->swoole_mysql->query($dbdet);
+			if($result){
+				$ret = $result[0];
+			}else{
+				$ret = array("error" => "Dashboard Fetch Error");
+				$this->status = 401;
+			}
+		}else if($data["trimmedPath"]=="api/getinvdet"){
+			$user = json_decode($data["queryStringObject"]);
+			var_dump($user);
+			$qhistory = "SELECT date_format(inv_date,'%d-%m-%Y') as inv_date, inv_description,inv_amount FROM sim.client_inv where cid='$user->uid' ";
+			$result = $this->swoole_mysql->query($qhistory);
+			if($result){
+				$ret = $result;
+			}else{
+				$ret = array("error" => "Investment Details Fetch Error");
+				$this->status = 401;
+			}
+
+		}else if($data["trimmedPath"]=="api/test"){
+			$user = json_decode($data["queryStringObject"]);
+			var_dump($user);
+			$qhistory = "select * from sim_clients where uid='$user->id' ";
+			var_dump($qhistory);
+			$result = $this->swoole_mysql->query($qhistory);
+			if($result){
+				$ret = $result;
+			}else{
+				$ret = array("error" => "History Fetch Error");
+				$this->status = 401;
+			}
+
+		}else if($data["trimmedPath"]=="api/gettrades"){
+			//$token = json_decode($data["token"]);
+			$user = json_decode($data["queryStringObject"]);
+			//var_dump($token->uid);
+			$qhistory = "select ct.*, ROUND(ct.open,2) as openprice,0 as exp  from client_trades ct where ct.uid=$user->uid  and  ct.status = 'open' order by ct.open_time desc";
+			var_dump($qhistory);
+			$result = $this->swoole_mysql->query($qhistory);
+			if($result){
+				$ret = $result;
+			}else{
+				$ret = array("error" => "Trade Fetch Error");
+				$this->status = 401;
+			}
 
 		}else if($data["trimmedPath"]=="api/gethistory"){
-			$token = json_decode($data["token"]);
-			var_dump($token->uid);
-			$qhistory = "select * from client_trades where uid=$token->uid  and  status = 'closed'";
+			//$token = json_decode($data["token"]);
+			$user = json_decode($data["queryStringObject"]);
+			//var_dump($token->uid);
+			$qhistory = "select ct.*, ROUND(ct.open,2) as openprice, 0 as exp from client_trades ct where ct.uid=$user->uid  and  ct.status = 'closed' order by ct.close_time desc";
 			var_dump($qhistory);
 			$result = $this->swoole_mysql->query($qhistory);
 			if($result){

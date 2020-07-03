@@ -32,7 +32,7 @@ if(!isset($table)){
 
 //Create Swoole Http & Https Server
 $http = new swoole_http_server("0.0.0.0", $config['httpPort']);
-//$https = $http->addListener("0.0.0.0", $config['httpsPort'],  SWOOLE_SOCK_TCP|SWOOLE_SSL);
+$https = $http->addListener("0.0.0.0", $config['httpsPort'],  SWOOLE_SOCK_TCP|SWOOLE_SSL);
 
 // Set worker Number, Max Connection & Max request
 $http->set([
@@ -41,19 +41,19 @@ $http->set([
       'max_connection' => 1024,
     	'max_request' => 1000000,
     	'enable_static_handler' => true,
-    	'document_root' => __DIR__.'/Public/',
+    	//'document_root' => __DIR__.'/Public/',
     	'upload_tmp_dir' => __DIR__.'/tmp/',
     	'Log_file' => __DIR__.'/logs/swoole.log',
     	'package_max_length' => 200000000,
     	'buffer_output_size' => 32 * 1024 *1024,
      ]);
 // Set SSL Cettification & Enable Http Protocol for Listening Port
-/*$https->set([
+$https->set([
 	'ssl_cert_file' => __DIR__.'/App/https/local.crt',
 	'ssl_key_file' => __DIR__.'/App/https/local.key',
 	'open_http_protocol' => true,
-	//'open_http2_protocol' => true ,
-]);  */
+	'open_http2_protocol' => true ,
+]);  
 
 // Start Http & Https Server
 $http->on("start", function ($server) use($config){
@@ -74,16 +74,18 @@ var_dump($data1->data); */
 
 // Handle request for http server
 $http->on("request", function ($request,$response) {
-    //var_dump($request);
+    var_dump($request);
 	
 	//Pass the request to unifiedserver function
 	unifiedserver($request,$response);
 });
 //Hadle request for https server
-/*$https->on("request", function ($request,$response) {
+$https->on("request", function ($request,$response) {
+	var_dump($request);
+	
 	//Pass the request to unifiedserver function
 	unifiedserver($request,$response);
-});  */
+});  
 
 //Start http & https servers, Single request is enough for both http & https servers, no need to call for https
 $http->start();
