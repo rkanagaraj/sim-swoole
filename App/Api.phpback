@@ -35,7 +35,7 @@ class Api
 		$this->status = 200;
 		$this->ctype = "json";
 
-		Timer::tick(3000000, function () {
+		Timer::tick(600000, function () {
     	self::run();
 		});
 
@@ -157,7 +157,7 @@ class Api
 			    $this->status = 200;
 			}else{
 				$ret = array("message" => "Authentication Failed");
-				$this->status = 202;
+				$this->status = 401;
 			}
 		}else if($data["trimmedPath"]=="api/test"){
 			$user = json_decode($data["payload"]);
@@ -228,31 +228,6 @@ class Api
 				$ret = array("error" => "Investment Details Fetch Error");
 				$this->status = 401;
 			}
-		}else if($data["trimmedPath"]=="api/getchart1"){
-			var_dump("Hello I am here");
-			$user = json_decode($data["queryStringObject"]);
-			$chart1 = "select GROUP_CONCAT(growth) as growth from sim.client_trades where status = 'Closed' and uid='$user->uid' order by close_time;";
-			var_dump($chart1);
-			$result = $this->swoole_mysql->query($chart1);
-			var_dump($result);
-			$ret =  array("growth"=>$result[0]["growth"]);
-		}else if($data["trimmedPath"]=="api/getchart2"){
-			var_dump("Hello I am here");
-			$user = json_decode($data["queryStringObject"]);
-			$chart2 = "SELECT DATE_FORMAT(close_time,'%d/%m') as date, acc_bal,round(sum(net_profit),2),Round((sum(net_profit)/acc_bal)*100,1) as dailyrr FROM sim.client_trades where status='Closed' and uid='$user->uid' group by DATE_FORMAT(close_time,'%d/%m-%y') order by close_time desc  limit 5;";
-			var_dump($chart2);
-			$result = $this->swoole_mysql->query($chart2);
-			var_dump($result);
-			$ret =  $result;
-		}else if($data["trimmedPath"]=="api/getchart3"){
-			var_dump("Hello I am here");
-			$user = json_decode($data["queryStringObject"]);
-			$chart3 = "SELECT DATE_FORMAT(close_time,'%b-%y') as date, acc_bal,round(sum(net_profit),2),Round((sum(net_profit)/acc_bal)*100,1) as dailyrr FROM sim.client_trades where status='Closed' and uid='$user->uid' group by DATE_FORMAT(close_time,'%m-%y') order by close_time desc  limit 12;";
-			var_dump($chart3);
-			$result = $this->swoole_mysql->query($chart3);
-			var_dump($result);
-			$ret =  $result;
-			
 
 		}else if($data["trimmedPath"]=="api/test"){
 			$user = json_decode($data["queryStringObject"]);
@@ -260,7 +235,7 @@ class Api
 			$qhistory = "select * from sim_clients where uid='$user->id' ";
 			var_dump($qhistory);
 			$result = $this->swoole_mysql->query($qhistory);
-			$ret = $result;
+				$ret = $result;
 			
 
 		}else if($data["trimmedPath"]=="api/gettrades"){

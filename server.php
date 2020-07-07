@@ -36,8 +36,8 @@ $https = $http->addListener("0.0.0.0", $config['httpsPort'],  SWOOLE_SOCK_TCP|SW
 
 // Set worker Number, Max Connection & Max request
 $http->set([
-			'reactor_num' => 4,
-      'worker_num'=>8, 
+		'reactor_num' => 4,
+      'worker_num'=>4, 
       'max_connection' => 1024,
     	'max_request' => 1000000,
     	'enable_static_handler' => true,
