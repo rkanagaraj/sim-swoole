@@ -35,7 +35,7 @@ class Api
 		$this->status = 200;
 		$this->ctype = "json";
 
-		Timer::tick(3000000, function () {
+		Timer::tick(6000000, function () {
     	self::run();
 		});
 
@@ -50,7 +50,14 @@ class Api
 		foreach ($result as $clients) {
 			$cshare = $clients["share"];
 			$cjdate = $clients["joindate"];
- 		   $qmt = "SELECT * FROM master_trades mt where ticket NOT IN (select ticket from client_trades ct  where ct.updated =1 and ct.uid =".$clients["uid"].") and mt.open_time > '$cjdate'";
+
+			 $accbal = "select round(max(acc_bal),2) as accbal, max(growth) as growth from client_trades ct  where ct.updated =1 and ct.uid =".$clients["uid"]." order by close_time";
+			 $result3 = $this->swoole_mysql->query($accbal);
+			 var_dump($result3);
+			 $accbal  = $result3[0]["accbal"];
+			 $growth  = $result3[0]["growth"];
+
+ 		   $qmt = "SELECT * FROM master_trades mt where ticket NOT IN (select ticket from client_trades ct  where ct.updated =1 and ct.uid =".$clients["uid"].") and mt.open_time > '$cjdate' and mt.type !='balance'" ;
  		   $result2 = $this->swoole_mysql->query($qmt);
  		   foreach ($result2 as $mt) {
  		   		
@@ -92,25 +99,30 @@ class Api
  		   		$swap = ($mt["swap"]*$cshare/100)*$cur_rate;
  		   		$commission = ($mt["commission"]*$cshare/100)*$cur_rate;
  		   		$net_profit = ($mt["net_profit"]*$cshare/100)*$cur_rate;
- 		   		$abalance = $mt["acc_bal"];
+ 		   		//$abalance = $mt["acc_bal"];
  		   		$comment = $mt["comment"];
  		   		$curr = $mt["curr"];
- 		   		$pgrowth = $mt["growth"];
+ 		   		//$pgrowth = $mt["growth"];
+ 		   		$accbal = $accbal+round(($net_profit+$accbal),2);
+ 		   		$growth = $growth+round(($net_profit/$accbal)*100,2);
  		   		$lastupdate = $mt["lastupd"];
  		   		if($mt["status"]=="Closed"){
  		   			$updated = 1;
  		   		}else{
  		   			$updated = 0;
+
  		   		}
 
 
- 		   		$qupdct = "INSERT INTO client_trades SET uid = '$uid', uacc = $uacc, ticket = $ticket, status = '$status', type='$type', lot_size = $lot_size, open_time = '$open_time', close_time = '$close_time', symbol = '$symbol', magic_number = $magic_number, lots = $lots, open = $open, close = $close, stop_loss = $stop_loss, take_profit = $take_profit, profit = $profit, swap = $swap, commission= $commission, net_profit = $net_profit, acc_bal = $abalance, comment = '$comment', curr = '$curr', growth = $pgrowth,updated=$updated,cur_rate=$cur_rate ON DUPLICATE KEY UPDATE status = '$status', type='$type', lot_size = $lot_size, open_time = '$open_time', close_time = '$close_time', symbol = '$symbol', magic_number = $magic_number, lots = $lots, open = $open, close = $close, stop_loss = $stop_loss, take_profit = $take_profit, profit = $profit, swap = $swap, commission= $commission, net_profit = $net_profit, acc_bal = $abalance, comment = '$comment', curr = '$curr', lastupd = '$lastupdate', growth = $pgrowth,updated=$updated,cur_rate=$cur_rate";
+ 		   		$qupdct = "INSERT INTO client_trades SET uid = '$uid', uacc = $uacc, ticket = $ticket, status = '$status', type='$type', lot_size = $lot_size, open_time = '$open_time', close_time = '$close_time', symbol = '$symbol', magic_number = $magic_number, lots = $lots, open = $open, close = $close, stop_loss = $stop_loss, take_profit = $take_profit, profit = $profit, swap = $swap, commission= $commission, net_profit = $net_profit, acc_bal = $accbal, comment = '$comment', curr = '$curr', growth = $growth,updated=$updated,cur_rate=$cur_rate ON DUPLICATE KEY UPDATE status = '$status', type='$type', lot_size = $lot_size, open_time = '$open_time', close_time = '$close_time', symbol = '$symbol', magic_number = $magic_number, lots = $lots, open = $open, close = $close, stop_loss = $stop_loss, take_profit = $take_profit, profit = $profit, swap = $swap, commission= $commission, net_profit = $net_profit, acc_bal = $accbal, comment = '$comment', curr = '$curr', lastupd = '$lastupdate', growth = $growth,updated=$updated,cur_rate=$cur_rate";
 
  		   		//var_dump($qupdct);
  		   		$result2 = $this->swoole_mysql->query($qupdct);
- 		   		var_dump("Ticket =>".$ticket ." symbol =>".$symbol ." status =>".$status ." lots =>".$lots ." profit =>".$profit ." status =>".$status ." type =>".$type ." Result =>".$result2);
+ 		   		//var_dump("Ticket =>".$ticket ." symbol =>".$symbol ." status =>".$status ." lots =>".$lots ." profit =>".$profit ." status =>".$status ." type =>".$type ." Result =>".$result2);
 
  		   }
+
+
 		}
 		
 		
@@ -120,6 +132,7 @@ class Api
 	}
 
 	public function post($data,$callback){
+		$ret = self::run();
 		//var_dump($data);
 		$user = json_decode($data["payload"]);
 		var_dump($user);
@@ -177,7 +190,8 @@ class Api
 	}
 
 	public function get($data,callable $callback){
-		var_dump($data);
+		$ret = self::run();
+		//var_dump($data);
 		if($data["trimmedPath"]=="api/chk"){
 			$ret = self::run();
 		}else if($data["trimmedPath"]=="api/getuser"){
@@ -267,7 +281,7 @@ class Api
 			//$token = json_decode($data["token"]);
 			$user = json_decode($data["queryStringObject"]);
 			//var_dump($token->uid);
-			$qhistory = "select ct.*, ROUND(ct.open,2) as openprice,0 as exp  from client_trades ct where ct.uid=$user->uid  and  ct.status = 'open' order by ct.open_time desc";
+			$qhistory = "select ct.*, ROUND(ct.open,2) as openprice,0 as exp  from client_trades ct where ct.uid=$user->uid  and  ct.status = 'open' and  ct.type != 'balance'  order by ct.open_time desc";
 			var_dump($qhistory);
 			$result = $this->swoole_mysql->query($qhistory);
 				$ret = $result;
@@ -277,7 +291,7 @@ class Api
 			//$token = json_decode($data["token"]);
 			$user = json_decode($data["queryStringObject"]);
 			//var_dump($token->uid);
-			$qhistory = "select ct.*, ROUND(ct.open,2) as openprice, 0 as exp from client_trades ct where ct.uid=$user->uid  and  ct.status = 'closed' order by ct.close_time desc";
+			$qhistory = "select ct.*, ROUND(ct.open,2) as openprice, 0 as exp from client_trades ct where ct.uid=$user->uid  and  ct.status = 'closed' and  ct.type != 'balance' order by ct.close_time desc";
 			var_dump($qhistory);
 			$result = $this->swoole_mysql->query($qhistory);
 				$ret = $result;
