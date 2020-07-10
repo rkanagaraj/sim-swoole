@@ -48,12 +48,13 @@ class Api
 		$qclients = "SELECT * FROM sim.sim_clients;";
 		$result = $this->swoole_mysql->query($qclients);
 		foreach ($result as $clients) {
+			$out = date('h:i:s A');
 			$cshare = $clients["share"];
 			$cjdate = $clients["joindate"];
 
 			 $accbal = "select round(max(acc_bal),2) as accbal, max(growth) as growth from client_trades ct  where ct.updated =1 and ct.uid =".$clients["uid"]." order by close_time";
 			 $result3 = $this->swoole_mysql->query($accbal);
-			 var_dump($result3);
+			 //var_dump($result3);
 			 $accbal  = $result3[0]["accbal"];
 			 $growth  = $result3[0]["growth"];
 
@@ -69,7 +70,7 @@ class Api
  		   			$recdate = date_format($ctime, "Y-m-d") ;	
  		   		}
  		   		
- 		   		var_dump($lastdate. "     ".$recdate);
+ 		   		///var_dump($lastdate. "     ".$recdate);
  		   		if($lastdate!=$recdate){
  		   			$lastdate = $recdate;	
  		   			//var_dump("https://api.exchangeratesapi.io/$recdate?base=USD&symbols=INR");
@@ -78,7 +79,7 @@ class Api
  		   			$cur_rate  = round($dec_content->rates->INR,2);
  		   		}
  		   		
- 		   		var_dump("Current Rate ".$cur_rate);
+ 		   		///////////////////var_dump("Current Rate ".$cur_rate);
  		   		
  		   		$uid = $clients["uid"];
  		   		$uacc =$mt["uacc"];
@@ -105,6 +106,7 @@ class Api
  		   		//$pgrowth = $mt["growth"];
  		   		$accbal = $accbal+round(($net_profit+$accbal),2);
  		   		$growth = $growth+round(($net_profit/$accbal)*100,2);
+ 		   		$dgrowth = round(($net_profit/$accbal)*100,2);
  		   		$lastupdate = $mt["lastupd"];
  		   		if($mt["status"]=="Closed"){
  		   			$updated = 1;
@@ -114,10 +116,11 @@ class Api
  		   		}
 
 
- 		   		$qupdct = "INSERT INTO client_trades SET uid = '$uid', uacc = $uacc, ticket = $ticket, status = '$status', type='$type', lot_size = $lot_size, open_time = '$open_time', close_time = '$close_time', symbol = '$symbol', magic_number = $magic_number, lots = $lots, open = $open, close = $close, stop_loss = $stop_loss, take_profit = $take_profit, profit = $profit, swap = $swap, commission= $commission, net_profit = $net_profit, acc_bal = $accbal, comment = '$comment', curr = '$curr', growth = $growth,updated=$updated,cur_rate=$cur_rate ON DUPLICATE KEY UPDATE status = '$status', type='$type', lot_size = $lot_size, open_time = '$open_time', close_time = '$close_time', symbol = '$symbol', magic_number = $magic_number, lots = $lots, open = $open, close = $close, stop_loss = $stop_loss, take_profit = $take_profit, profit = $profit, swap = $swap, commission= $commission, net_profit = $net_profit, acc_bal = $accbal, comment = '$comment', curr = '$curr', lastupd = '$lastupdate', growth = $growth,updated=$updated,cur_rate=$cur_rate";
+ 		   		$qupdct = "INSERT INTO client_trades SET uid = '$uid', uacc = $uacc, ticket = $ticket, status = '$status', type='$type', lot_size = $lot_size, open_time = '$open_time', close_time = '$close_time', symbol = '$symbol', magic_number = $magic_number, lots = $lots, open = $open, close = $close, stop_loss = $stop_loss, take_profit = $take_profit, profit = $profit, swap = $swap, commission= $commission, net_profit = $net_profit, acc_bal = $accbal, comment = '$comment', curr = '$curr', growth = $growth,dgrowth = $dgrowth,updated=$updated,cur_rate=$cur_rate ON DUPLICATE KEY UPDATE status = '$status', type='$type', lot_size = $lot_size, open_time = '$open_time', close_time = '$close_time', symbol = '$symbol', magic_number = $magic_number, lots = $lots, open = $open, close = $close, stop_loss = $stop_loss, take_profit = $take_profit, profit = $profit, swap = $swap, commission= $commission, net_profit = $net_profit, acc_bal = $accbal, comment = '$comment', curr = '$curr', lastupd = '$lastupdate', growth = $growth,dgrowth = $dgrowth,updated=$updated,cur_rate=$cur_rate";
 
  		   		//var_dump($qupdct);
  		   		$result2 = $this->swoole_mysql->query($qupdct);
+ 		   		 $out = $out . " ". $accbal. " ". $growth. " ". $dgrowth;
  		   		//var_dump("Ticket =>".$ticket ." symbol =>".$symbol ." status =>".$status ." lots =>".$lots ." profit =>".$profit ." status =>".$status ." type =>".$type ." Result =>".$result2);
 
  		   }
@@ -126,7 +129,7 @@ class Api
 		}
 		
 		
-
+		var_dump($out);
 		return $result2;
 
 	}
@@ -253,7 +256,7 @@ class Api
 		}else if($data["trimmedPath"]=="api/getchart2"){
 			var_dump("Hello I am here");
 			$user = json_decode($data["queryStringObject"]);
-			$chart2 = "SELECT DATE_FORMAT(close_time,'%d/%m') as date, acc_bal,round(sum(net_profit),2),Round((sum(net_profit)/acc_bal)*100,1) as dailyrr FROM sim.client_trades where status='Closed' and uid='$user->uid' group by DATE_FORMAT(close_time,'%d/%m-%y') order by close_time desc  limit 5;";
+			$chart2 = "SELECT DATE_FORMAT(close_time,'%d/%m') as date, acc_bal,round(sum(net_profit),2),round(sum(dgrowth),1)  as dailyrr FROM sim.client_trades where status='Closed' and uid='$user->uid' group by DATE_FORMAT(close_time,'%d/%m-%y') order by close_time desc  limit 5;";
 			var_dump($chart2);
 			$result = $this->swoole_mysql->query($chart2);
 			var_dump($result);
@@ -261,7 +264,7 @@ class Api
 		}else if($data["trimmedPath"]=="api/getchart3"){
 			var_dump("Hello I am here");
 			$user = json_decode($data["queryStringObject"]);
-			$chart3 = "SELECT DATE_FORMAT(close_time,'%b-%y') as date, acc_bal,round(sum(net_profit),2),Round((sum(net_profit)/acc_bal)*100,1) as dailyrr FROM sim.client_trades where status='Closed' and uid='$user->uid' group by DATE_FORMAT(close_time,'%m-%y') order by close_time desc  limit 12;";
+			$chart3 = "SELECT DATE_FORMAT(close_time,'%b-%y') as date, acc_bal,round(sum(net_profit),2), round(sum(dgrowth),1) as dailyrr FROM sim.client_trades where status='Closed' and uid='$user->uid' group by DATE_FORMAT(close_time,'%m-%y') order by close_time desc  limit 12;";
 			var_dump($chart3);
 			$result = $this->swoole_mysql->query($chart3);
 			var_dump($result);
