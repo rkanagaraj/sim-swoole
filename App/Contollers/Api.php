@@ -74,7 +74,7 @@ class Api
  		   		if($lastdate!=$recdate){
  		   			$lastdate = $recdate;	
  		   			//var_dump("https://api.exchangeratesapi.io/$recdate?base=USD&symbols=INR");
- 		   			$content =     file_get_contents("https://api.exchangeratesapi.io/$recdate?base=USD&symbols=INR");
+ 		   			$content =     file_get_contents("https://api.ratesapi.io/api/$recdate?base=USD&symbols=INR");
  		   			$dec_content = json_decode($content);
  		   			$cur_rate  = round($dec_content->rates->INR,2);
  		   		}
@@ -105,8 +105,13 @@ class Api
  		   		$curr = $mt["curr"];
  		   		//$pgrowth = $mt["growth"];
  		   		$accbal = $accbal+round(($net_profit+$accbal),2);
- 		   		$growth = $growth+round(($net_profit/$accbal)*100,2);
- 		   		$dgrowth = round(($net_profit/$accbal)*100,2);
+				$growth = $growth+round(($net_profit/$accbal)*100,2);
+				var_dump($growth);
+				var_dump("<br>");
+				if(is_nan($growth)){ 
+					$growth=0;
+				}
+				$dgrowth = round(($net_profit/$accbal)*100,2);
  		   		$lastupdate = $mt["lastupd"];
  		   		if($mt["status"]=="Closed"){
  		   			$updated = 1;
@@ -118,10 +123,10 @@ class Api
 
  		   		$qupdct = "INSERT INTO client_trades SET uid = '$uid', uacc = $uacc, ticket = $ticket, status = '$status', type='$type', lot_size = $lot_size, open_time = '$open_time', close_time = '$close_time', symbol = '$symbol', magic_number = $magic_number, lots = $lots, open = $open, close = $close, stop_loss = $stop_loss, take_profit = $take_profit, profit = $profit, swap = $swap, commission= $commission, net_profit = $net_profit, acc_bal = $accbal, comment = '$comment', curr = '$curr', growth = $growth,dgrowth = $dgrowth,updated=$updated,cur_rate=$cur_rate ON DUPLICATE KEY UPDATE status = '$status', type='$type', lot_size = $lot_size, open_time = '$open_time', close_time = '$close_time', symbol = '$symbol', magic_number = $magic_number, lots = $lots, open = $open, close = $close, stop_loss = $stop_loss, take_profit = $take_profit, profit = $profit, swap = $swap, commission= $commission, net_profit = $net_profit, acc_bal = $accbal, comment = '$comment', curr = '$curr', lastupd = '$lastupdate', growth = $growth,dgrowth = $dgrowth,updated=$updated,cur_rate=$cur_rate";
 
- 		   		//var_dump($qupdct);
+ 		   		var_dump($qupdct);
  		   		$result2 = $this->swoole_mysql->query($qupdct);
  		   		 $out = $out . " ". $accbal. " ". $growth. " ". $dgrowth;
- 		   		//var_dump("Ticket =>".$ticket ." symbol =>".$symbol ." status =>".$status ." lots =>".$lots ." profit =>".$profit ." status =>".$status ." type =>".$type ." Result =>".$result2);
+ 		   		//var_dump("UID => ".$uid." Ticket =>".$ticket ." symbol =>".$symbol ." status =>".$status ." lots =>".$lots ." profit =>".$profit ." status =>".$status ." type =>".$type ." Result =>".$result2);
 
  		   }
 
