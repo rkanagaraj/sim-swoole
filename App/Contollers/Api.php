@@ -140,7 +140,7 @@ class Api
 	}
 
 	public function post($data,$callback){
-		$ret = self::run();
+		
 		//var_dump($data);
 		$user = json_decode($data["payload"]);
 		var_dump($user);
@@ -195,10 +195,11 @@ class Api
 		}
 		var_dump($ret);
 		$callback($this->status,$ret,$this->ctype);
+		$ret = self::run();
 	}
 
 	public function get($data,callable $callback){
-		$ret = self::run();
+		
 		//var_dump($data);
 		if($data["trimmedPath"]=="api/chk"){
 			$ret = self::run();
@@ -244,10 +245,24 @@ class Api
 			var_dump($user);
 			$qhistory = "SELECT date_format(inv_date,'%d-%m-%Y') as inv_date, inv_description,inv_amount FROM sim.client_inv where cid='$user->uid' ";
 			$result = $this->swoole_mysql->query($qhistory);
+			var_dump($qhistory);
 			if($result){
 				$ret = $result;
 			}else{
 				$ret = array("error" => "Investment Details Fetch Error");
+				$this->status = 401;
+			}
+		}else if($data["trimmedPath"]=="api/getwddet"){
+			$user = json_decode($data["queryStringObject"]);
+			var_dump($user);
+			$qhistory = "SELECT date_format(wd_date,'%d-%m-%Y') as wd_date, wd_description,wd_amount FROM sim.client_wd where cid='$user->uid' ";
+			var_dump($qhistory);
+			$result = $this->swoole_mysql->query($qhistory);
+			var_dump($result);
+			if($result){
+				$ret = $result;
+			}else{
+				$ret = array("error" => "Withdrawn Details Fetch Error");
 				$this->status = 401;
 			}
 		}else if($data["trimmedPath"]=="api/getchart1"){
@@ -307,6 +322,7 @@ class Api
 
 		}
 		$callback($this->status,$ret,$this->ctype);
+		$ret = self::run();
 			
 	}
 
