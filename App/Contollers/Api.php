@@ -74,7 +74,7 @@ class Api
  		   		if($lastdate!=$recdate){
  		   			$lastdate = $recdate;	
  		   			//var_dump("https://api.exchangeratesapi.io/$recdate?base=USD&symbols=INR");
- 		   			$content =     file_get_contents("https://api.ratesapi.io/api/$recdate?base=USD&symbols=INR");
+ 		   			$content =     file_get_contents("https://api.frankfurter.app/$recdate?base=USD&symbols=INR");
  		   			$dec_content = json_decode($content);
  		   			$cur_rate  = round($dec_content->rates->INR,2);
  		   		}
