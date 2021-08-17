@@ -20,7 +20,9 @@ class Api
 		$this->server = array(
 		    'host' => 'shiwin.co.in',
 		    //'host' => 'localhost',
+			//'host' => '127.0.0.1',
 		    'user' => 'ubuntu',
+			'port' => '3306',
 		    //'user' => 'root',
 		    'password' => 'caminven',
 		    'database' => 'sim',
@@ -36,7 +38,7 @@ class Api
 		$this->ctype = "json";
 
 		Timer::tick(6000000, function () {
-    	self::run();
+    	//self::run();
 		});
 
 	}
@@ -195,14 +197,14 @@ class Api
 		}
 		var_dump($ret);
 		$callback($this->status,$ret,$this->ctype);
-		$ret = self::run();
+		//$ret = self::run();
 	}
 
 	public function get($data,callable $callback){
 		
 		//var_dump($data);
 		if($data["trimmedPath"]=="api/chk"){
-			$ret = self::run();
+			//$ret = self::run();
 		}else if($data["trimmedPath"]=="api/getuser"){
 			$user = json_decode($data["queryStringObject"]);
 			$client = "select * from sim_clients where uid='$user->uid'";
@@ -231,15 +233,17 @@ class Api
 			$user = json_decode($data["queryStringObject"]);
 			var_dump($user);
 			$result = $this->swoole_mysql->query("CALL getDB($user->uid)");
-			if($result){
+			var_dump($result);
+			//if($result){
 				$dbdet = "select * from client_db where cid='$user->uid' ";
 				$result = $this->swoole_mysql->query($dbdet);
+				var_dump($result);
 				if($result){
 					$ret = $result[0];
 				}else{
 					$ret = array("error" => "Dashboard Fetch Error");
 				}
-			}
+			//}
 		}else if($data["trimmedPath"]=="api/getinvdet"){
 			$user = json_decode($data["queryStringObject"]);
 			var_dump($user);
@@ -268,34 +272,56 @@ class Api
 		}else if($data["trimmedPath"]=="api/getchart1"){
 			var_dump("Hello I am here");
 			$user = json_decode($data["queryStringObject"]);
-			$chart1 = "select GROUP_CONCAT(growth) as growth from sim.client_trades where status = 'Closed' and uid='$user->uid' order by close_time;";
-			var_dump($chart1);
+			//$chart1 = "select GROUP_CONCAT(growth) as growth from sim.client_trades where status = 'Closed' and uid='$user->uid' order by close_time;";
+			$chart1 = "select GROUP_CONCAT(@growth:=@growth+round(((net_profit/acc_bal)*100),2)) as growth from sim.client_trades where status = 'Closed' and uid='$user->uid' order by close_time;";
+			//var_dump($chart1);
+			$result = $this->swoole_mysql->query("SET @@group_concat_max_len =15000;");
+			$result = $this->swoole_mysql->query("SET @growth:=0;");
 			$result = $this->swoole_mysql->query($chart1);
-			var_dump($result);
+			//var_dump($result);
 			$ret =  array("growth"=>$result[0]["growth"]);
 		}else if($data["trimmedPath"]=="api/getchart2"){
-			var_dump("Hello I am here");
+			//var_dump("Hello I am here");
 			$user = json_decode($data["queryStringObject"]);
-			$chart2 = "SELECT DATE_FORMAT(close_time,'%d/%m') as date, acc_bal,round(sum(net_profit),2),round(sum(dgrowth),1)  as dailyrr FROM sim.client_trades where status='Closed' and uid='$user->uid' group by DATE_FORMAT(close_time,'%d/%m-%y') order by close_time desc  limit 5;";
-			var_dump($chart2);
+			$chart2 = "SELECT DATE_FORMAT(close_time,'%d/%m') as date, acc_bal,
+			round(sum(net_profit),2) as dayprofit,
+			round(((sum(net_profit)/acc_bal)*100),2)  as dailyrr FROM sim.client_trades 
+			where status='Closed' and uid='$user->uid' 
+			group by DATE_FORMAT(close_time,'%d/%m-%y') order by close_time desc  limit 10;";
+			//var_dump($chart2);
 			$result = $this->swoole_mysql->query($chart2);
-			var_dump($result);
+			//var_dump($result);
 			$ret =  $result;
 		}else if($data["trimmedPath"]=="api/getchart3"){
-			var_dump("Hello I am here");
+			//var_dump("Hello I am here in chart3");
 			$user = json_decode($data["queryStringObject"]);
-			$chart3 = "SELECT DATE_FORMAT(close_time,'%b-%y') as date, acc_bal,round(sum(net_profit),2), round(sum(dgrowth),1) as dailyrr FROM sim.client_trades where status='Closed' and uid='$user->uid' group by DATE_FORMAT(close_time,'%m-%y') order by close_time desc  limit 12;";
-			var_dump($chart3);
+			$chart3 = "SELECT DATE_FORMAT(close_time,'%b-%y') as date, acc_bal,
+			round(sum(net_profit),2) as mprofit, round(((sum(net_profit)/acc_bal)*100),2) as dailyrr
+			 FROM sim.client_trades where status='Closed' 
+			 and uid='$user->uid' 
+			 group by DATE_FORMAT(close_time,'%m-%y') order by close_time desc  limit 12;";
+			//var_dump($chart3);
 			$result = $this->swoole_mysql->query($chart3);
-			var_dump($result);
+			//var_dump($result);
+			$ret =  $result;
+		}else if($data["trimmedPath"]=="api/getchart4"){
+			//var_dump("Hello I am here in chart3");
+			$user = json_decode($data["queryStringObject"]);
+			$chart4 = "SELECT CONCAT(DATE_FORMAT(STR_TO_DATE(CONCAT(YEARWEEK(close_time, 0), ' ', 'Monday'), '%X%V %W'),'%m.%e'),'-', 
+			DATE_FORMAT(STR_TO_DATE(CONCAT(YEARWEEK(close_time, 0), ' ', 'Friday'), '%X%V %W'),'%m.%e')) AS week, 
+			acc_bal, sum(net_profit) AS profit,round(((sum(net_profit)/acc_bal)*100),2) as weekrr FROM client_trades 
+			where uid ='$user->uid' GROUP BY YEARWEEK(close_time, 0) ORDER BY YEARWEEK(close_time, 0) desc limit 8;";
+			var_dump($chart4);
+			$result = $this->swoole_mysql->query($chart4);
+			//var_dump($result);
 			$ret =  $result;
 			
 
 		}else if($data["trimmedPath"]=="api/test"){
 			$user = json_decode($data["queryStringObject"]);
-			var_dump($user);
+			//var_dump($user);
 			$qhistory = "select * from sim_clients where uid='$user->id' ";
-			var_dump($qhistory);
+			//var_dump($qhistory);
 			$result = $this->swoole_mysql->query($qhistory);
 			$ret = $result;
 			
@@ -305,24 +331,26 @@ class Api
 			$user = json_decode($data["queryStringObject"]);
 			//var_dump($token->uid);
 			$qhistory = "select ct.*, ROUND(ct.open,2) as openprice,0 as exp  from client_trades ct where ct.uid=$user->uid  and  ct.status = 'open' and  ct.type != 'balance'  order by ct.open_time desc";
-			var_dump($qhistory);
+			//var_dump($qhistory);
 			$result = $this->swoole_mysql->query($qhistory);
-				$ret = $result;
+			var_dump(count($result));
+			$ret = $result;
 			
 
 		}else if($data["trimmedPath"]=="api/gethistory"){
 			//$token = json_decode($data["token"]);
 			$user = json_decode($data["queryStringObject"]);
 			//var_dump($token->uid);
-			$qhistory = "select ct.*, ROUND(ct.open,2) as openprice, 0 as exp from client_trades ct where ct.uid=$user->uid  and  ct.status = 'closed' and  ct.type != 'balance' order by ct.close_time desc";
-			var_dump($qhistory);
+			$qhistory = "select ct.*, ROUND(ct.open,2) as openprice, 0 as exp from client_trades ct where ct.uid=$user->uid  and  ct.status = 'closed' and  ct.type != 'balance' order by ct.close_time desc limit $user->limit";
+			//var_dump($qhistory);
 			$result = $this->swoole_mysql->query($qhistory);
-				$ret = $result;
+			var_dump(count($result));
+			$ret = $result;
 			
 
 		}
 		$callback($this->status,$ret,$this->ctype);
-		$ret = self::run();
+		//$ret = self::run();
 			
 	}
 

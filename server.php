@@ -74,14 +74,14 @@ var_dump($data1->data); */
 
 // Handle request for http server
 $http->on("request", function ($request,$response) {
-    var_dump($request);
+   //var_dump($request);
 	
 	//Pass the request to unifiedserver function
 	unifiedserver($request,$response);
 });
 //Hadle request for https server
 $https->on("request", function ($request,$response) {
-	var_dump($request);
+	//var_dump($request);
 	
 	//Pass the request to unifiedserver function
 	unifiedserver($request,$response);
